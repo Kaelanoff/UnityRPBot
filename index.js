@@ -123,7 +123,6 @@ function splitText(text, maxLength = 3800) {
 }
 
 async function buildHierarchyPayload(guild) {
-  await guild.members.fetch();
   await guild.roles.fetch();
 
   const hierarchy = loadHierarchy();
@@ -210,7 +209,10 @@ async function updateSavedHierarchyMessage(guild) {
 
   try {
     const channel = await guild.channels.fetch(saved.channelId);
-    if (!channel || !channel.isTextBased()) return;
+
+    if (!channel || !channel.isTextBased()) {
+      return;
+    }
 
     const message = await channel.messages.fetch(saved.messageId);
     const payload = await buildHierarchyPayload(guild);
@@ -218,8 +220,37 @@ async function updateSavedHierarchyMessage(guild) {
     await message.edit(payload);
     console.log('🔄 Hiérarchie mise à jour automatiquement.');
   } catch (error) {
+    // Discord 10008 = le message enregistré a été supprimé.
+    if (error?.code === 10008) {
+      saveJson(MESSAGE_FILE, {
+        guildId: null,
+        channelId: null,
+        messageId: null
+      });
+
+      console.log('ℹ️ Ancien message de hiérarchie supprimé : utilise /hierarchie pour en publier un nouveau.');
+      return;
+    }
+
     console.error('❌ Mise à jour auto impossible :', error?.message || error);
   }
+}
+
+const hierarchyUpdateTimers = new Map();
+
+function scheduleHierarchyUpdate(guild) {
+  const existing = hierarchyUpdateTimers.get(guild.id);
+
+  if (existing) {
+    clearTimeout(existing);
+  }
+
+  const timer = setTimeout(async () => {
+    hierarchyUpdateTimers.delete(guild.id);
+    await updateSavedHierarchyMessage(guild);
+  }, 2500);
+
+  hierarchyUpdateTimers.set(guild.id, timer);
 }
 
 const client = new Client({
@@ -331,6 +362,15 @@ client.once(Events.ClientReady, async readyClient => {
 
   for (const guild of readyClient.guilds.cache.values()) {
     try {
+      // Une seule récupération complète des membres au démarrage.
+      // Ensuite les changements de rôles sont suivis via GuildMemberUpdate.
+      await guild.members.fetch();
+      console.log(`✅ Membres chargés sur ${guild.name}`);
+    } catch (error) {
+      console.warn(`⚠️ Chargement membres ${guild.name} :`, error?.message || error);
+    }
+
+    try {
       await guild.commands.set(commands);
       console.log(`✅ Commandes installées sur ${guild.name}`);
     } catch (error) {
@@ -340,6 +380,12 @@ client.once(Events.ClientReady, async readyClient => {
 });
 
 client.on(Events.GuildCreate, async guild => {
+  try {
+    await guild.members.fetch();
+  } catch (error) {
+    console.warn('⚠️ Chargement membres nouveau serveur :', error?.message || error);
+  }
+
   try {
     await guild.commands.set(createCommands());
   } catch (error) {
@@ -532,7 +578,7 @@ client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
 
   if (!relevantChange) return;
 
-  await updateSavedHierarchyMessage(newMember.guild);
+  scheduleHierarchyUpdate(newMember.guild);
 });
 
 client.on(Events.Error, error => {
