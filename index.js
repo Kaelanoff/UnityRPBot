@@ -101,7 +101,7 @@ function splitText(text, maxLength = 3800) {
   return chunks;
 }
 
-async function buildHierarchyPayload(guild, pingEveryone = false) {
+async function buildHierarchyPayload(guild) {
   await guild.members.fetch();
   await guild.roles.fetch();
 
@@ -154,12 +154,10 @@ async function buildHierarchyPayload(guild, pingEveryone = false) {
   });
 
   return {
-    content: pingEveryone
-      ? '@everyone\n# 📋 HIÉRARCHIE DU SERVEUR'
-      : '# 📋 HIÉRARCHIE DU SERVEUR',
+    content: '# 📋 HIÉRARCHIE DU SERVEUR',
     embeds,
     allowedMentions: {
-      parse: pingEveryone ? ['everyone'] : []
+      parse: []
     }
   };
 }
@@ -180,7 +178,7 @@ async function updateSavedHierarchyMessage(guild) {
     if (!channel || !channel.isTextBased()) return;
 
     const message = await channel.messages.fetch(saved.messageId);
-    const payload = await buildHierarchyPayload(guild, false);
+    const payload = await buildHierarchyPayload(guild);
 
     await message.edit(payload);
     console.log('🔄 Hiérarchie mise à jour automatiquement.');
@@ -253,7 +251,7 @@ client.once(Events.ClientReady, async readyClient => {
   console.log(`🤖 ${readyClient.user.tag}`);
   console.log(`🌐 Serveurs : ${readyClient.guilds.cache.size}`);
   console.log(`🔒 /config réservé à : ${AUTHORIZED_USERNAME}`);
-  console.log('📢 /hierarchie publie pour @everyone');
+  console.log('📋 /hierarchie publie sans mention');
 
   try {
     await readyClient.application.commands.set([]);
@@ -378,7 +376,7 @@ client.on(Events.InteractionCreate, async interaction => {
         return interaction.editReply('❌ Cette commande doit être utilisée sur un serveur.');
       }
 
-      const payload = await buildHierarchyPayload(interaction.guild, true);
+      const payload = await buildHierarchyPayload(interaction.guild);
       const message = await interaction.editReply(payload);
 
       saveJson(MESSAGE_FILE, {
