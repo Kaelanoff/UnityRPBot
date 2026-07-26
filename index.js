@@ -143,8 +143,22 @@ async function buildHierarchyPayload(guild) {
         continue;
       }
 
-      const count = role.members.size;
-      text += `**${role.name}** — \`${count} membre${count > 1 ? 's' : ''}\`\n\n`;
+      const members = [...role.members.values()];
+      const count = members.length;
+
+      text += `**${role.name}** — \`${count} membre${count > 1 ? 's' : ''}\`\n`;
+
+      // Pour les rôles importants, on affiche aussi les membres.
+      // Les rôles de la catégorie "AUTRES RÔLES" gardent seulement le nombre.
+      if (category !== '📌・AUTRES RÔLES') {
+        if (count === 0) {
+          text += '> Aucun membre\n\n';
+        } else {
+          text += `> ${members.map(member => `<@${member.id}>`).join(' • ')}\n\n`;
+        }
+      } else {
+        text += '\n';
+      }
     }
 
     text += '━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n';
@@ -178,7 +192,7 @@ async function buildHierarchyPayload(guild) {
     content: '# 📋 HIÉRARCHIE DU SERVEUR',
     embeds,
     allowedMentions: {
-      parse: []
+      parse: ['users']
     }
   };
 }
