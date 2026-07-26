@@ -37,9 +37,7 @@ const CATEGORIES = [
 ];
 
 function ensureData() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
   if (!fs.existsSync(CONFIG_FILE)) {
     const initial = Object.fromEntries(CATEGORIES.map(c => [c, []]));
@@ -118,7 +116,7 @@ async function buildHierarchyPayload(guild, pingEveryone = false) {
       const role = guild.roles.cache.get(roleId);
 
       if (!role) {
-        text += `**Rôle supprimé/introuvable** — \`0 membre\`\n\n`;
+        text += `**Rôle introuvable** — \`0 membre\`\n\n`;
         continue;
       }
 
@@ -130,11 +128,10 @@ async function buildHierarchyPayload(guild, pingEveryone = false) {
   }
 
   if (!text.trim()) {
-    text = '⚠️ Aucun rôle n’est encore configuré.\n\nUtilise `/config role` pour ajouter des rôles.';
+    text = '⚠️ Aucun rôle configuré.';
   }
 
   const chunks = splitText(text);
-
   const embeds = chunks.slice(0, 10).map((chunk, index) => {
     const embed = new EmbedBuilder()
       .setColor(0x2B2D31)
@@ -171,12 +168,7 @@ async function updateSavedHierarchyMessage(guild) {
     messageId: null
   });
 
-  if (
-    !saved.guildId ||
-    saved.guildId !== guild.id ||
-    !saved.channelId ||
-    !saved.messageId
-  ) {
+  if (!saved.guildId || saved.guildId !== guild.id || !saved.channelId || !saved.messageId) {
     return;
   }
 
@@ -206,57 +198,47 @@ const client = new Client({
 });
 
 function createCommands() {
-  const categoryChoices = CATEGORIES.map(category => ({
+  const choices = CATEGORIES.map(category => ({
     name: category,
     value: category
   }));
 
   const configCommand = new SlashCommandBuilder()
     .setName('config')
-    .setDescription('Configure la hiérarchie.')
+    .setDescription('Configuration privée de la hiérarchie.')
     .addSubcommand(sub =>
       sub
         .setName('role')
-        .setDescription('Ajoute ou déplace un rôle dans une catégorie.')
+        .setDescription('Ajoute ou déplace un rôle.')
         .addRoleOption(option =>
-          option
-            .setName('role')
-            .setDescription('Rôle à configurer')
-            .setRequired(true)
+          option.setName('role').setDescription('Rôle').setRequired(true)
         )
         .addStringOption(option =>
           option
             .setName('categorie')
             .setDescription('Catégorie')
             .setRequired(true)
-            .addChoices(...categoryChoices)
+            .addChoices(...choices)
         )
     )
     .addSubcommand(sub =>
       sub
         .setName('supprimer')
-        .setDescription('Retire un rôle de la hiérarchie.')
+        .setDescription('Retire un rôle.')
         .addRoleOption(option =>
-          option
-            .setName('role')
-            .setDescription('Rôle à retirer')
-            .setRequired(true)
+          option.setName('role').setDescription('Rôle').setRequired(true)
         )
     )
     .addSubcommand(sub =>
-      sub
-        .setName('voir')
-        .setDescription('Affiche les rôles configurés.')
+      sub.setName('voir').setDescription('Voir la configuration.')
     )
     .addSubcommand(sub =>
-      sub
-        .setName('vider')
-        .setDescription('Vide toute la hiérarchie.')
+      sub.setName('vider').setDescription('Vider la configuration.')
     );
 
   const hierarchyCommand = new SlashCommandBuilder()
     .setName('hierarchie')
-    .setDescription('Publie la hiérarchie et active la mise à jour automatique.');
+    .setDescription('Publie la hiérarchie pour tout le serveur.');
 
   return [configCommand.toJSON(), hierarchyCommand.toJSON()];
 }
@@ -266,52 +248,41 @@ client.once(Events.ClientReady, async readyClient => {
 
   console.log('✅ BOT CONNECTÉ');
   console.log(`🤖 ${readyClient.user.tag}`);
-  console.log(`🌐 Serveurs : ${readyClient.guilds.cache.size}`);
-  console.log(`🔒 Commandes réservées à : ${AUTHORIZED_USERNAME}`);
+  console.log(`🔒 /config réservé à : ${AUTHORIZED_USERNAME}`);
+  console.log('📢 /hierarchie publie pour @everyone');
 
-  const commands = createCommands();
-
+  // Nettoie les anciennes commandes globales
   try {
-    // Supprime les anciennes commandes globales qui peuvent provoquer
-    // "Cette commande est obsolète".
     await readyClient.application.commands.set([]);
-    console.log('🧹 Anciennes commandes globales supprimées.');
   } catch (error) {
-    console.warn('⚠️ Nettoyage global non bloquant :', error?.message || error);
+    console.warn('⚠️ Nettoyage global :', error?.message || error);
   }
 
-  // Installation PAR SERVEUR = apparition quasi immédiate et pas de délai global.
+  // Commandes de serveur = mise à jour immédiate
+  const commands = createCommands();
+
   for (const guild of readyClient.guilds.cache.values()) {
     try {
       await guild.commands.set(commands);
-      console.log(`✅ Commandes installées sur : ${guild.name}`);
+      console.log(`✅ Commandes installées sur ${guild.name}`);
     } catch (error) {
-      console.error(`❌ Installation commandes sur ${guild.name} :`, error);
+      console.error(`❌ Installation commandes ${guild.name} :`, error);
     }
-  }
-});
-
-client.on(Events.GuildCreate, async guild => {
-  try {
-    await guild.commands.set(createCommands());
-    console.log(`✅ Commandes installées sur nouveau serveur : ${guild.name}`);
-  } catch (error) {
-    console.error('❌ GuildCreate commands :', error);
   }
 });
 
 client.on(Events.InteractionCreate, async interaction => {
   if (!interaction.isChatInputCommand()) return;
-  if (!['config', 'hierarchie'].includes(interaction.commandName)) return;
 
-  if (!isAuthorized(interaction.user)) {
-    return interaction.reply({
-      content: '❌ Vous n’êtes pas autorisé à utiliser cette commande.',
-      flags: MessageFlags.Ephemeral
-    });
-  }
-
+  // /CONFIG = PRIVÉ + UNIQUEMENT ytmaxed
   if (interaction.commandName === 'config') {
+    if (!isAuthorized(interaction.user)) {
+      return interaction.reply({
+        content: '❌ Cette commande est privée.',
+        flags: MessageFlags.Ephemeral
+      });
+    }
+
     const sub = interaction.options.getSubcommand();
     const hierarchy = loadHierarchy();
 
@@ -346,17 +317,16 @@ client.on(Events.InteractionCreate, async interaction => {
       if (interaction.guild) await updateSavedHierarchyMessage(interaction.guild);
 
       return interaction.reply({
-        content: `✅ ${role} retiré de la hiérarchie.`,
+        content: `✅ ${role} retiré.`,
         flags: MessageFlags.Ephemeral
       });
     }
 
     if (sub === 'voir') {
-      let text = '# ⚙️ CONFIGURATION DE LA HIÉRARCHIE\n\n';
+      let text = '# ⚙️ CONFIGURATION PRIVÉE\n\n';
 
       for (const category of CATEGORIES) {
         text += `## ${category}\n`;
-
         const ids = hierarchy[category] || [];
         text += ids.length
           ? `${ids.map(id => `<@&${id}>`).join('\n')}\n\n`
@@ -383,7 +353,16 @@ client.on(Events.InteractionCreate, async interaction => {
     }
   }
 
+  // /HIERARCHIE = SEUL ytmaxed PEUT LA LANCER,
+  // MAIS LE MESSAGE EST PUBLIC ET PING @everyone.
   if (interaction.commandName === 'hierarchie') {
+    if (!isAuthorized(interaction.user)) {
+      return interaction.reply({
+        content: '❌ Vous n’êtes pas autorisé à publier la hiérarchie.',
+        flags: MessageFlags.Ephemeral
+      });
+    }
+
     await interaction.deferReply();
 
     try {
@@ -400,15 +379,16 @@ client.on(Events.InteractionCreate, async interaction => {
         messageId: message.id
       });
 
-      console.log('✅ Message hiérarchie enregistré.');
       return;
     } catch (error) {
       console.error('❌ /hierarchie :', error);
-      return interaction.editReply('❌ Une erreur est survenue pendant la création de la hiérarchie.');
+      return interaction.editReply('❌ Une erreur est survenue.');
     }
   }
 });
 
+// Mise à jour automatique du nombre quand un rôle configuré change.
+// Pas de nouveau ping @everyone lors des mises à jour.
 client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
   const hierarchy = loadHierarchy();
   const configuredRoleIds = new Set(Object.values(hierarchy).flat());
@@ -423,18 +403,6 @@ client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
   if (!relevantChange) return;
 
   await updateSavedHierarchyMessage(newMember.guild);
-});
-
-client.on(Events.Error, error => {
-  console.error('❌ Discord :', error);
-});
-
-process.on('unhandledRejection', error => {
-  console.error('❌ Promesse non gérée :', error);
-});
-
-process.on('uncaughtException', error => {
-  console.error('❌ Erreur non interceptée :', error);
 });
 
 client.login(process.env.TOKEN);
