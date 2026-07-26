@@ -61,7 +61,7 @@ function loadJson(file, fallback) {
 
   try {
     return JSON.parse(fs.readFileSync(file, 'utf8'));
-  } catch (error) {
+  } catch {
     return fallback;
   }
 }
@@ -111,7 +111,7 @@ function splitText(text, maxLength = 3800) {
   return chunks;
 }
 
-async function buildHierarchyPayload(guild) {
+async function buildHierarchyPayload(guild, pingEveryone = false) {
   await guild.members.fetch();
   await guild.roles.fetch();
 
@@ -133,7 +133,6 @@ async function buildHierarchyPayload(guild) {
       }
 
       const count = role.members.size;
-
       text += `**${role.name}** — \`${count} membre${count > 1 ? 's' : ''}\`\n\n`;
     }
 
@@ -157,9 +156,7 @@ async function buildHierarchyPayload(guild) {
 
     if (index === Math.min(chunks.length, 10) - 1) {
       embed
-        .setFooter({
-          text: 'Hiérarchie officielle • Mise à jour automatique'
-        })
+        .setFooter({ text: 'Hiérarchie officielle • Mise à jour automatique' })
         .setTimestamp();
     }
 
@@ -167,19 +164,18 @@ async function buildHierarchyPayload(guild) {
   });
 
   return {
-    content: '@everyone\n# 📋 HIÉRARCHIE DU SERVEUR',
+    content: pingEveryone
+      ? '@everyone\n# 📋 HIÉRARCHIE DU SERVEUR'
+      : '# 📋 HIÉRARCHIE DU SERVEUR',
     embeds,
     allowedMentions: {
-      parse: ['everyone']
+      parse: pingEveryone ? ['everyone'] : []
     }
   };
 }
 
 async function updateSavedHierarchyMessage(guild) {
-  const saved = loadJson(MESSAGE_FILE, {
-    channelId: null,
-    messageId: null
-  });
+  const saved = loadJson(MESSAGE_FILE, { channelId: null, messageId: null });
 
   if (!saved.channelId || !saved.messageId) return;
 
@@ -188,11 +184,7 @@ async function updateSavedHierarchyMessage(guild) {
     if (!channel || !channel.isTextBased()) return;
 
     const message = await channel.messages.fetch(saved.messageId);
-    const payload = await buildHierarchyPayload(guild);
-
-    // Évite de reping @everyone à chaque mise à jour automatique.
-    payload.content = '# 📋 HIÉRARCHIE DU SERVEUR';
-    payload.allowedMentions = { parse: [] };
+    const payload = await buildHierarchyPayload(guild, false);
 
     await message.edit(payload);
     console.log('🔄 Hiérarchie mise à jour automatiquement.');
@@ -208,12 +200,7 @@ const client = new Client({
   ],
   presence: {
     status: 'online',
-    activities: [
-      {
-        name: 'Unity RP',
-        type: ActivityType.Playing
-      }
-    ]
+    activities: [{ name: 'Unity RP', type: ActivityType.Playing }]
   }
 });
 
@@ -231,15 +218,15 @@ client.once(Events.ClientReady, async readyClient => {
 
   const configCommand = new SlashCommandBuilder()
     .setName('config')
-    .setDescription('Configure simplement la hiérarchie.')
+    .setDescription('Configure la hiérarchie.')
     .addSubcommand(subcommand =>
       subcommand
-        .setName('ajouter')
-        .setDescription('Ajoute un rôle à la hiérarchie.')
+        .setName('role')
+        .setDescription('Ajoute ou déplace un rôle dans la hiérarchie.')
         .addRoleOption(option =>
           option
             .setName('role')
-            .setDescription('Le rôle à ajouter.')
+            .setDescription('Le rôle à configurer.')
             .setRequired(true)
         )
         .addStringOption(option =>
@@ -264,7 +251,7 @@ client.once(Events.ClientReady, async readyClient => {
     .addSubcommand(subcommand =>
       subcommand
         .setName('voir')
-        .setDescription('Affiche les rôles configurés.')
+        .setDescription('Affiche la configuration actuelle.')
     )
     .addSubcommand(subcommand =>
       subcommand
@@ -281,8 +268,7 @@ client.once(Events.ClientReady, async readyClient => {
       configCommand.toJSON(),
       hierarchyCommand.toJSON()
     ]);
-
-    console.log('✅ Commandes installées.');
+    console.log('✅ Commandes /config et /hierarchie installées.');
   } catch (error) {
     console.error('❌ Erreur installation commandes :', error);
   }
@@ -303,7 +289,7 @@ client.on(Events.InteractionCreate, async interaction => {
     const subcommand = interaction.options.getSubcommand();
     const hierarchy = loadHierarchy();
 
-    if (subcommand === 'ajouter') {
+    if (subcommand === 'role') {
       const role = interaction.options.getRole('role', true);
       const category = interaction.options.getString('categorie', true);
 
@@ -314,10 +300,12 @@ client.on(Events.InteractionCreate, async interaction => {
       hierarchy[category].push(role.id);
       saveHierarchy(hierarchy);
 
-      await updateSavedHierarchyMessage(interaction.guild);
+      if (interaction.guild) {
+        await updateSavedHierarchyMessage(interaction.guild);
+      }
 
       return interaction.reply({
-        content: `✅ ${role} ajouté dans **${category}**.`,
+        content: `✅ ${role} est maintenant dans **${category}**.`,
         flags: MessageFlags.Ephemeral
       });
     }
@@ -330,16 +318,19 @@ client.on(Events.InteractionCreate, async interaction => {
       }
 
       saveHierarchy(hierarchy);
-      await updateSavedHierarchyMessage(interaction.guild);
+
+      if (interaction.guild) {
+        await updateSavedHierarchyMessage(interaction.guild);
+      }
 
       return interaction.reply({
-        content: `✅ ${role} supprimé de la hiérarchie.`,
+        content: `✅ ${role} a été supprimé de la hiérarchie.`,
         flags: MessageFlags.Ephemeral
       });
     }
 
     if (subcommand === 'voir') {
-      let text = '# ⚙️ CONFIGURATION\n\n';
+      let text = '# ⚙️ CONFIGURATION DE LA HIÉRARCHIE\n\n';
 
       for (const category of CATEGORIES) {
         text += `## ${category}\n`;
@@ -365,7 +356,10 @@ client.on(Events.InteractionCreate, async interaction => {
       for (const category of CATEGORIES) empty[category] = [];
 
       saveHierarchy(empty);
-      await updateSavedHierarchyMessage(interaction.guild);
+
+      if (interaction.guild) {
+        await updateSavedHierarchyMessage(interaction.guild);
+      }
 
       return interaction.reply({
         content: '✅ Hiérarchie vidée.',
@@ -378,8 +372,7 @@ client.on(Events.InteractionCreate, async interaction => {
     await interaction.deferReply();
 
     try {
-      const payload = await buildHierarchyPayload(interaction.guild);
-
+      const payload = await buildHierarchyPayload(interaction.guild, true);
       const message = await interaction.editReply(payload);
 
       saveJson(MESSAGE_FILE, {
@@ -387,7 +380,7 @@ client.on(Events.InteractionCreate, async interaction => {
         messageId: message.id
       });
 
-      console.log('✅ Message de hiérarchie enregistré pour mise à jour automatique.');
+      console.log('✅ Message de hiérarchie enregistré.');
     } catch (error) {
       console.error('❌ Erreur /hierarchie :', error);
 
@@ -398,22 +391,13 @@ client.on(Events.InteractionCreate, async interaction => {
   }
 });
 
-// Mise à jour automatique dès qu'un membre gagne ou perd un rôle.
+// Mise à jour automatique dès qu’un rôle configuré est ajouté ou retiré.
 client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
+  const hierarchy = loadHierarchy();
+  const configuredRoleIds = new Set(Object.values(hierarchy).flat());
+
   const oldRoles = oldMember.roles.cache;
   const newRoles = newMember.roles.cache;
-
-  const changed =
-    oldRoles.size !== newRoles.size ||
-    [...oldRoles.keys()].some(id => !newRoles.has(id)) ||
-    [...newRoles.keys()].some(id => !oldRoles.has(id));
-
-  if (!changed) return;
-
-  const hierarchy = loadHierarchy();
-  const configuredRoleIds = new Set(
-    Object.values(hierarchy).flat()
-  );
 
   const relevantChange =
     [...oldRoles.keys()].some(id => configuredRoleIds.has(id) && !newRoles.has(id)) ||
