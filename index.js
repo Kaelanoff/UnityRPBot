@@ -88,10 +88,12 @@ function splitText(text, maxLength = 3800) {
 
   for (const line of text.split('\n')) {
     const add = `${line}\n`;
+
     if ((current + add).length > maxLength && current) {
       chunks.push(current);
       current = '';
     }
+
     current += add;
   }
 
@@ -132,6 +134,7 @@ async function buildHierarchyPayload(guild, pingEveryone = false) {
   }
 
   const chunks = splitText(text);
+
   const embeds = chunks.slice(0, 10).map((chunk, index) => {
     const embed = new EmbedBuilder()
       .setColor(0x2B2D31)
@@ -248,17 +251,17 @@ client.once(Events.ClientReady, async readyClient => {
 
   console.log('✅ BOT CONNECTÉ');
   console.log(`🤖 ${readyClient.user.tag}`);
+  console.log(`🌐 Serveurs : ${readyClient.guilds.cache.size}`);
   console.log(`🔒 /config réservé à : ${AUTHORIZED_USERNAME}`);
   console.log('📢 /hierarchie publie pour @everyone');
 
-  // Nettoie les anciennes commandes globales
   try {
     await readyClient.application.commands.set([]);
+    console.log('🧹 Anciennes commandes globales supprimées.');
   } catch (error) {
     console.warn('⚠️ Nettoyage global :', error?.message || error);
   }
 
-  // Commandes de serveur = mise à jour immédiate
   const commands = createCommands();
 
   for (const guild of readyClient.guilds.cache.values()) {
@@ -271,10 +274,17 @@ client.once(Events.ClientReady, async readyClient => {
   }
 });
 
+client.on(Events.GuildCreate, async guild => {
+  try {
+    await guild.commands.set(createCommands());
+  } catch (error) {
+    console.error('❌ Installation commandes nouveau serveur :', error);
+  }
+});
+
 client.on(Events.InteractionCreate, async interaction => {
   if (!interaction.isChatInputCommand()) return;
 
-  // /CONFIG = PRIVÉ + UNIQUEMENT ytmaxed
   if (interaction.commandName === 'config') {
     if (!isAuthorized(interaction.user)) {
       return interaction.reply({
@@ -353,8 +363,6 @@ client.on(Events.InteractionCreate, async interaction => {
     }
   }
 
-  // /HIERARCHIE = SEUL ytmaxed PEUT LA LANCER,
-  // MAIS LE MESSAGE EST PUBLIC ET PING @everyone.
   if (interaction.commandName === 'hierarchie') {
     if (!isAuthorized(interaction.user)) {
       return interaction.reply({
@@ -379,6 +387,7 @@ client.on(Events.InteractionCreate, async interaction => {
         messageId: message.id
       });
 
+      console.log('✅ Message de hiérarchie enregistré.');
       return;
     } catch (error) {
       console.error('❌ /hierarchie :', error);
@@ -387,8 +396,6 @@ client.on(Events.InteractionCreate, async interaction => {
   }
 });
 
-// Mise à jour automatique du nombre quand un rôle configuré change.
-// Pas de nouveau ping @everyone lors des mises à jour.
 client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
   const hierarchy = loadHierarchy();
   const configuredRoleIds = new Set(Object.values(hierarchy).flat());
@@ -404,5 +411,39 @@ client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
 
   await updateSavedHierarchyMessage(newMember.guild);
 });
+
+client.on(Events.Error, error => {
+  console.error('❌ Discord :', error);
+});
+
+process.on('unhandledRejection', error => {
+  console.error('❌ Promesse non gérée :', error);
+});
+
+process.on('uncaughtException', error => {
+  console.error('❌ Erreur non interceptée :', error);
+});
+
+// Railway envoie SIGTERM quand il arrête/remplace un container.
+// On ferme proprement Discord et on quitte avec le code 0.
+let shuttingDown = false;
+
+async function gracefulShutdown(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+
+  console.log(`🛑 ${signal} reçu : arrêt propre du bot...`);
+
+  try {
+    client.destroy();
+  } catch (error) {
+    console.error('⚠️ Erreur pendant la fermeture Discord :', error);
+  }
+
+  setTimeout(() => process.exit(0), 250);
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 client.login(process.env.TOKEN);
