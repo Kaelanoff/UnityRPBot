@@ -23,6 +23,7 @@ const AUTHORIZED_USERNAME = 'ytmaxed';
 const DATA_DIR = path.join(__dirname, 'data');
 const CONFIG_FILE = path.join(DATA_DIR, 'hierarchie.json');
 const MESSAGE_FILE = path.join(DATA_DIR, 'hierarchie-message.json');
+const ACCESS_FILE = path.join(DATA_DIR, 'access.json');
 
 const CATEGORIES = [
   '👑・FONDATION',
@@ -48,6 +49,14 @@ function ensureData() {
     fs.writeFileSync(
       MESSAGE_FILE,
       JSON.stringify({ guildId: null, channelId: null, messageId: null }, null, 2),
+      'utf8'
+    );
+  }
+
+  if (!fs.existsSync(ACCESS_FILE)) {
+    fs.writeFileSync(
+      ACCESS_FILE,
+      JSON.stringify({ userIds: [] }, null, 2),
       'utf8'
     );
   }
@@ -78,8 +87,20 @@ function loadHierarchy() {
   return data;
 }
 
-function isAuthorized(user) {
+function isOwner(user) {
   return String(user.username).toLowerCase() === AUTHORIZED_USERNAME.toLowerCase();
+}
+
+function loadAccess() {
+  const data = loadJson(ACCESS_FILE, { userIds: [] });
+  if (!Array.isArray(data.userIds)) data.userIds = [];
+  return data;
+}
+
+function isAuthorized(user) {
+  if (isOwner(user)) return true;
+  const access = loadAccess();
+  return access.userIds.includes(user.id);
 }
 
 function splitText(text, maxLength = 3800) {
@@ -235,6 +256,38 @@ function createCommands() {
     )
     .addSubcommand(sub =>
       sub.setName('vider').setDescription('Vider la configuration.')
+    )
+    .addSubcommandGroup(group =>
+      group
+        .setName('acces')
+        .setDescription('Gère les personnes autorisées.')
+        .addSubcommand(sub =>
+          sub
+            .setName('ajouter')
+            .setDescription('Autorise une personne à utiliser les commandes.')
+            .addUserOption(option =>
+              option
+                .setName('membre')
+                .setDescription('Membre à autoriser')
+                .setRequired(true)
+            )
+        )
+        .addSubcommand(sub =>
+          sub
+            .setName('retirer')
+            .setDescription('Retire l’accès à une personne.')
+            .addUserOption(option =>
+              option
+                .setName('membre')
+                .setDescription('Membre à retirer')
+                .setRequired(true)
+            )
+        )
+        .addSubcommand(sub =>
+          sub
+            .setName('voir')
+            .setDescription('Affiche les personnes autorisées.')
+        )
     );
 
   const hierarchyCommand = new SlashCommandBuilder()
@@ -250,7 +303,7 @@ client.once(Events.ClientReady, async readyClient => {
   console.log('✅ BOT CONNECTÉ');
   console.log(`🤖 ${readyClient.user.tag}`);
   console.log(`🌐 Serveurs : ${readyClient.guilds.cache.size}`);
-  console.log(`🔒 /config réservé à : ${AUTHORIZED_USERNAME}`);
+  console.log(`🔒 Propriétaire des accès : ${AUTHORIZED_USERNAME}`);
   console.log('📋 /hierarchie publie sans mention');
 
   try {
@@ -284,6 +337,65 @@ client.on(Events.InteractionCreate, async interaction => {
   if (!interaction.isChatInputCommand()) return;
 
   if (interaction.commandName === 'config') {
+    const group = interaction.options.getSubcommandGroup(false);
+    const sub = interaction.options.getSubcommand();
+
+    // Seul ytmaxed peut gérer qui a accès.
+    if (group === 'acces') {
+      if (!isOwner(interaction.user)) {
+        return interaction.reply({
+          content: '❌ Seul ytmaxed peut gérer les accès.',
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      const access = loadAccess();
+
+      if (sub === 'ajouter') {
+        const member = interaction.options.getUser('membre', true);
+
+        if (isOwner(member)) {
+          return interaction.reply({
+            content: 'ℹ️ ytmaxed a déjà toujours accès.',
+            flags: MessageFlags.Ephemeral
+          });
+        }
+
+        if (!access.userIds.includes(member.id)) {
+          access.userIds.push(member.id);
+          saveJson(ACCESS_FILE, access);
+        }
+
+        return interaction.reply({
+          content: `✅ ${member} peut maintenant utiliser **/config** et **/hierarchie**.`,
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      if (sub === 'retirer') {
+        const member = interaction.options.getUser('membre', true);
+        access.userIds = access.userIds.filter(id => id !== member.id);
+        saveJson(ACCESS_FILE, access);
+
+        return interaction.reply({
+          content: `✅ L’accès de ${member} a été retiré.`,
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      if (sub === 'voir') {
+        const lines = access.userIds.length
+          ? access.userIds.map(id => `<@${id}>`).join('\n')
+          : '> Aucun membre supplémentaire';
+
+        return interaction.reply({
+          content: `# 🔐 PERSONNES AUTORISÉES\n\n**Propriétaire :** ${AUTHORIZED_USERNAME}\n\n${lines}`,
+          allowedMentions: { parse: [] },
+          flags: MessageFlags.Ephemeral
+        });
+      }
+    }
+
     if (!isAuthorized(interaction.user)) {
       return interaction.reply({
         content: '❌ Cette commande est privée.',
@@ -291,7 +403,6 @@ client.on(Events.InteractionCreate, async interaction => {
       });
     }
 
-    const sub = interaction.options.getSubcommand();
     const hierarchy = loadHierarchy();
 
     if (sub === 'role') {
