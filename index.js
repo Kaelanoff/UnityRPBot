@@ -315,9 +315,7 @@ function buildPanelPayload() {
       Object.entries(TICKET_TYPES).map(([value, type]) => ({
         label: type.label,
         description: type.description.slice(0, 100),
-        value,
-        emoji: type.emoji
-      }))
+        value,}))
     );
 
   return {
@@ -399,39 +397,33 @@ function controlRows(ticket) {
   const claim = new ButtonBuilder()
     .setCustomId('ticket:claim')
     .setLabel(ticket.claimedBy ? 'DÃ©jÃ  pris en charge' : 'Prendre en charge')
-    .setEmoji('ðŸ“—')
     .setStyle(ticket.claimedBy ? ButtonStyle.Secondary : ButtonStyle.Success)
     .setDisabled(Boolean(ticket.claimedBy));
 
   const release = new ButtonBuilder()
     .setCustomId('ticket:release')
     .setLabel('LibÃ©rer')
-    .setEmoji('ðŸ“˜')
     .setStyle(ButtonStyle.Primary)
     .setDisabled(!ticket.claimedBy);
 
   const add = new ButtonBuilder()
     .setCustomId('ticket:add_member')
     .setLabel('Ajouter un membre')
-    .setEmoji('ðŸ‘¥')
     .setStyle(ButtonStyle.Secondary);
 
   const remove = new ButtonBuilder()
     .setCustomId('ticket:remove_member')
     .setLabel('Retirer un membre')
-    .setEmoji('ðŸ‘¤')
     .setStyle(ButtonStyle.Secondary);
 
   const transcript = new ButtonBuilder()
     .setCustomId('ticket:transcript')
     .setLabel('Transcription')
-    .setEmoji('ðŸ“')
     .setStyle(ButtonStyle.Secondary);
 
   const close = new ButtonBuilder()
     .setCustomId('ticket:close')
     .setLabel('Fermer')
-    .setEmoji('ðŸ”’')
     .setStyle(ButtonStyle.Danger);
 
   return [
@@ -1554,13 +1546,11 @@ client.on(Events.InteractionCreate, async interaction => {
         const confirm = new ButtonBuilder()
           .setCustomId('ticket:close_confirm')
           .setLabel('Confirmer la fermeture')
-          .setEmoji('âœ…')
           .setStyle(ButtonStyle.Danger);
 
         const cancel = new ButtonBuilder()
           .setCustomId('ticket:close_cancel')
           .setLabel('Annuler')
-          .setEmoji('âŒ')
           .setStyle(ButtonStyle.Secondary);
 
         return interaction.reply({
