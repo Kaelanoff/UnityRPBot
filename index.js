@@ -658,61 +658,114 @@ async function createTicketFromModal(interaction, typeKey, concernedUserId = nul
   const formData = {};
   for (const id of formIds) formData[id] = fieldValue(interaction, id);
 
-  const channel = await interaction.guild.channels.create({
-    name: ticketChannelName(typeKey, reference),
-    type: ChannelType.GuildText,
-    parent: config.ticketCategoryId,
-    topic: `${reference} | ${type.label} | Créateur: ${interaction.user.id}`,
-    permissionOverwrites: buildPermissionOverwrites(
-      interaction.guild,
-      interaction.user.id,
-      typeKey,
-      concernedUserId
-    )
-  });
+  let createdChannel = null;
 
-  const ticket = {
-    guildId: interaction.guild.id,
-    channelId: channel.id,
-    reference,
-    type: typeKey,
-    ownerId: interaction.user.id,
-    concernedUserId,
-    formData,
-    status: 'open',
-    claimedBy: null,
-    addedUserIds: [],
-    createdAt: Date.now(),
-    controlMessageId: null
-  };
-
-  const message = await channel.send({
-    content: `<@${interaction.user.id}>`,
-    embeds: buildTicketEmbeds(ticket),
-    components: controlRows(ticket),
-    allowedMentions: { users: [interaction.user.id] }
-  });
-
-  ticket.controlMessageId = message.id;
-  ticketsData.tickets[channel.id] = ticket;
-  writeJson(TICKETS_FILE, ticketsData);
-
-  await interaction.editReply({
-    content: `✅ Votre dossier **${reference}** a été créé : ${channel}`
-  });
-
-  await sendTicketLog(
-    interaction.guild,
-    new EmbedBuilder()
-      .setColor(type.color)
-      .setTitle(`${type.emoji} Dossier créé — ${reference}`)
-      .addFields(
-        { name: 'Créateur', value: `<@${interaction.user.id}>`, inline: true },
-        { name: 'Catégorie', value: type.label, inline: true },
-        { name: 'Salon', value: `${channel}`, inline: true }
+  try {
+    createdChannel = await interaction.guild.channels.create({
+      name: ticketChannelName(typeKey, reference),
+      type: ChannelType.GuildText,
+      parent: config.ticketCategoryId,
+      topic: `${reference} | ${type.label} | Créateur: ${interaction.user.id}`,
+      permissionOverwrites: buildPermissionOverwrites(
+        interaction.guild,
+        interaction.user.id,
+        typeKey,
+        concernedUserId
       )
-      .setTimestamp()
-  );
+    });
+
+    // Discord peut parfois renvoyer le salon avant qu'il soit totalement disponible.
+    // On attend brièvement puis on le récupère à nouveau depuis l'API.
+    await new Promise(resolve => setTimeout(resolve, 1200));
+
+    let channel = await interaction.guild.channels
+      .fetch(createdChannel.id, { force: true })
+      .catch(() => null);
+
+    if (!channel || !channel.isTextBased()) {
+      throw new Error('Le salon créé est devenu introuvable.');
+    }
+
+    const ticket = {
+      guildId: interaction.guild.id,
+      channelId: channel.id,
+      reference,
+      type: typeKey,
+      ownerId: interaction.user.id,
+      concernedUserId,
+      formData,
+      status: 'open',
+      claimedBy: null,
+      addedUserIds: [],
+      createdAt: Date.now(),
+      controlMessageId: null
+    };
+
+    let message = null;
+
+    // Deux essais maximum pour éviter l'erreur Discord 10003 (Unknown Channel).
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+      try {
+        message = await channel.send({
+          content: `<@${interaction.user.id}>`,
+          embeds: buildTicketEmbeds(ticket),
+          components: controlRows(ticket),
+          allowedMentions: { users: [interaction.user.id] }
+        });
+        break;
+      } catch (error) {
+        if (error?.code !== 10003 || attempt === 2) throw error;
+
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        channel = await interaction.guild.channels
+          .fetch(createdChannel.id, { force: true })
+          .catch(() => null);
+
+        if (!channel || !channel.isTextBased()) {
+          throw new Error('Le salon a été supprimé juste après sa création.');
+        }
+      }
+    }
+
+    if (!message) {
+      throw new Error('Impossible d’envoyer le message initial du ticket.');
+    }
+
+    ticket.controlMessageId = message.id;
+    ticketsData.tickets[channel.id] = ticket;
+    writeJson(TICKETS_FILE, ticketsData);
+
+    await interaction.editReply({
+      content: `✅ Votre dossier **${reference}** a été créé : ${channel}`
+    });
+
+    await sendTicketLog(
+      interaction.guild,
+      new EmbedBuilder()
+        .setColor(type.color)
+        .setTitle(`${type.emoji} Dossier créé — ${reference}`)
+        .addFields(
+          { name: 'Créateur', value: `<@${interaction.user.id}>`, inline: true },
+          { name: 'Catégorie', value: type.label, inline: true },
+          { name: 'Salon', value: `${channel}`, inline: true }
+        )
+        .setTimestamp()
+    );
+  } catch (error) {
+    console.error('❌ Création du ticket impossible :', error);
+
+    // Nettoyage : si un salon vide a été créé, on le supprime.
+    if (createdChannel) {
+      await createdChannel.delete('Échec de création du ticket').catch(() => {});
+    }
+
+    return interaction.editReply({
+      content:
+        '❌ Le ticket n’a pas pu être créé correctement.\n' +
+        'Vérifiez que le bot possède **Voir les salons**, **Gérer les salons**, ' +
+        '**Envoyer des messages** et **Gérer les permissions** dans la catégorie configurée.'
+    });
+  }
 }
 
 async function makeTranscript(channel, ticket) {
@@ -1533,7 +1586,14 @@ client.on(Events.ChannelDelete, channel => {
   }
 });
 
-client.on(Events.Error, error => console.error('❌ Discord :', error));
+client.on(Events.Error, error => {
+  if (error?.code === 10003) {
+    console.warn('⚠️ Discord a signalé un salon introuvable (10003). Le ticket sera nettoyé automatiquement.');
+    return;
+  }
+
+  console.error('❌ Discord :', error);
+});
 process.on('unhandledRejection', error => console.error('❌ Promesse non gérée :', error));
 process.on('uncaughtException', error => console.error('❌ Erreur non interceptée :', error));
 
