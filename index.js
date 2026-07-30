@@ -31,7 +31,10 @@ if (!process.env.TOKEN) {
 
 const OWNER_USERNAME = 'ytmaxed';
 
-const DATA_DIR = path.join(__dirname, 'data');
+// Stockage persistant Railway.
+// Ton volume doit être monté exactement sur /data.
+// Tu peux aussi définir DATA_DIR dans Railway si tu changes le chemin plus tard.
+const DATA_DIR = process.env.DATA_DIR || '/data';
 const HIERARCHY_FILE = path.join(DATA_DIR, 'hierarchie.json');
 const HIERARCHY_MESSAGE_FILE = path.join(DATA_DIR, 'hierarchie-message.json');
 const ACCESS_FILE = path.join(DATA_DIR, 'access.json');
@@ -89,7 +92,21 @@ const TICKET_TYPES = {
 };
 
 function ensureData() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+
+    // Vérifie que le volume est réellement accessible en écriture.
+    const testFile = path.join(DATA_DIR, '.write-test');
+    fs.writeFileSync(testFile, String(Date.now()), 'utf8');
+    fs.unlinkSync(testFile);
+  } catch (error) {
+    console.error(`❌ Impossible d’écrire dans le stockage persistant ${DATA_DIR}.`);
+    console.error('❌ Vérifie que le volume Railway est monté sur /data.');
+    console.error(error);
+    process.exit(1);
+  }
 
   const defaults = [
     [HIERARCHY_FILE, Object.fromEntries(HIERARCHY_CATEGORIES.map(c => [c, []]))],
@@ -494,6 +511,8 @@ async function sendTicketLog(guild, embed, files = []) {
 }
 
 function buildPermissionOverwrites(guild, ownerId, typeKey, concernedUserId = null) {
+  const botUserId = guild.members.me?.id || client.user?.id;
+
   const overwrites = [
     {
       id: guild.roles.everyone.id,
@@ -510,6 +529,23 @@ function buildPermissionOverwrites(guild, ownerId, typeKey, concernedUserId = nu
       ]
     }
   ];
+
+  // Très important : le bot doit garder un accès individuel au salon.
+  // Sinon le refus de @everyone peut aussi lui masquer le ticket juste après sa création.
+  if (botUserId) {
+    overwrites.push({
+      id: botUserId,
+      allow: [
+        PermissionFlagsBits.ViewChannel,
+        PermissionFlagsBits.SendMessages,
+        PermissionFlagsBits.ReadMessageHistory,
+        PermissionFlagsBits.ManageChannels,
+        PermissionFlagsBits.ManageMessages,
+        PermissionFlagsBits.AttachFiles,
+        PermissionFlagsBits.EmbedLinks
+      ]
+    });
+  }
 
   let allowedRoles = [];
 
@@ -676,14 +712,16 @@ async function createTicketFromModal(interaction, typeKey, concernedUserId = nul
 
     // Discord peut parfois renvoyer le salon avant qu'il soit totalement disponible.
     // On attend brièvement puis on le récupère à nouveau depuis l'API.
-    await new Promise(resolve => setTimeout(resolve, 1200));
+    await new Promise(resolve => setTimeout(resolve, 800));
 
+    // Le salon retourné par guild.channels.create est déjà utilisable.
+    // On tente ensuite un fetch, mais on garde le salon créé comme solution de secours.
     let channel = await interaction.guild.channels
       .fetch(createdChannel.id, { force: true })
-      .catch(() => null);
+      .catch(() => createdChannel);
 
     if (!channel || !channel.isTextBased()) {
-      throw new Error('Le salon créé est devenu introuvable.');
+      channel = createdChannel;
     }
 
     const ticket = {
@@ -719,10 +757,10 @@ async function createTicketFromModal(interaction, typeKey, concernedUserId = nul
         await new Promise(resolve => setTimeout(resolve, 1500));
         channel = await interaction.guild.channels
           .fetch(createdChannel.id, { force: true })
-          .catch(() => null);
+          .catch(() => createdChannel);
 
         if (!channel || !channel.isTextBased()) {
-          throw new Error('Le salon a été supprimé juste après sa création.');
+          channel = createdChannel;
         }
       }
     }
@@ -948,6 +986,9 @@ client.once(Events.ClientReady, async readyClient => {
   ensureData();
 
   console.log('✅ UNITY RP BOT CONNECTÉ');
+  console.log(`💾 Stockage persistant utilisé : ${DATA_DIR}`);
+  console.log(`💾 Hiérarchie : ${HIERARCHY_FILE}`);
+  console.log(`💾 Tickets : ${TICKETS_FILE}`);
   console.log(`🤖 ${readyClient.user.tag}`);
   console.log(`🌐 Serveurs : ${readyClient.guilds.cache.size}`);
   console.log(`🔐 Propriétaire : ${OWNER_USERNAME}`);
