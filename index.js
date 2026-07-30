@@ -22,18 +22,18 @@ const {
   AttachmentBuilder
 } = require('discord.js');
 
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 
 if (!process.env.TOKEN) {
-  console.error('âŒ TOKEN manquant dans .env / Railway Variables.');
+  console.error(' TOKEN manquant dans .env / Railway Variables.');
   process.exit(1);
 }
 
 const OWNER_USERNAME = 'ytmaxed';
 
 // Stockage persistant Railway.
-// Ton volume doit Ãªtre montÃ© exactement sur /data.
-// Tu peux aussi dÃ©finir DATA_DIR dans Railway si tu changes le chemin plus tard.
+// Ton volume doit etre monte exactement sur /data.
+// Tu peux aussi definir DATA_DIR dans Railway si tu changes le chemin plus tard.
 const DATA_DIR = process.env.DATA_DIR || '/data';
 const HIERARCHY_FILE = path.join(DATA_DIR, 'hierarchie.json');
 const HIERARCHY_MESSAGE_FILE = path.join(DATA_DIR, 'hierarchie-message.json');
@@ -42,15 +42,15 @@ const TICKET_CONFIG_FILE = path.join(DATA_DIR, 'ticket-config.json');
 const TICKETS_FILE = path.join(DATA_DIR, 'tickets.json');
 
 const HIERARCHY_CATEGORIES = [
-  'ðŸ‘‘ãƒ»FONDATION',
-  'ðŸ’¼ãƒ»MEMBRES DE LA GÃ‰RANCE',
-  'âš™ï¸ãƒ»ADMINISTRATION',
-  'ðŸ›¡ï¸ãƒ»MODÃ‰RATION',
-  'ðŸ¤ãƒ»AIDE',
-  'ðŸ“‹ãƒ»GÃ‰RANCES SPÃ‰CIALISÃ‰ES',
-  'ðŸ”¨ãƒ»BUILD',
-  'ðŸ¤–ãƒ»BOT',
-  'ðŸ“Œãƒ»AUTRES RÃ”LES'
+  'FONDATION',
+  'MEMBRES DE LA GERANCE',
+  'ADMINISTRATION',
+  'MODERATION',
+  'AIDE',
+  'GERANCES SPECIALISEES',
+  'BUILD',
+  'BOT',
+  'AUTRES ROLES'
 ];
 
 const STAFF_HANDLED_TICKET_TYPES = new Set([
@@ -62,35 +62,35 @@ const STAFF_HANDLED_TICKET_TYPES = new Set([
 const TICKET_TYPES = {
   plainte_staff: {
     prefix: 'PL',
-    emoji: 'ðŸ”',
+    emoji: '',
     label: 'Plainte Staff',
     description: 'Signaler confidentiellement un membre du staff.',
     color: 0xED4245
   },
   question_rc: {
     prefix: 'RC',
-    emoji: 'ðŸ“‹',
+    emoji: '',
     label: 'Question RC Staff',
-    description: 'Question sur le rÃ¨glement ou les procÃ©dures staff.',
+    description: 'Question sur le reglement ou les procedures staff.',
     color: 0x5865F2
   },
   question: {
     prefix: 'QST',
-    emoji: 'â“',
-    label: 'Question gÃ©nÃ©rale',
+    emoji: '',
+    label: 'Question generale',
     description: 'Poser une question concernant Unity RP.',
     color: 0x57F287
   },
   fondation: {
     prefix: 'FND',
-    emoji: 'ðŸ‘‘',
+    emoji: '',
     label: 'Contacter la Fondation',
-    description: 'Envoyer une demande directement Ã  la Fondation.',
+    description: 'Envoyer une demande directement a la Fondation.',
     color: 0xFEE75C
   },
   partenariat: {
     prefix: 'PART',
-    emoji: 'ðŸ¤',
+    emoji: '',
     label: 'Partenariat',
     description: 'Demande ou question concernant un partenariat.',
     color: 0xEB459E
@@ -103,13 +103,13 @@ function ensureData() {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
 
-    // VÃ©rifie que le volume est rÃ©ellement accessible en Ã©criture.
+    // Verifie que le volume est reellement accessible en ecriture.
     const testFile = path.join(DATA_DIR, '.write-test');
     fs.writeFileSync(testFile, String(Date.now()), 'utf8');
     fs.unlinkSync(testFile);
   } catch (error) {
-    console.error(`âŒ Impossible dâ€™Ã©crire dans le stockage persistant ${DATA_DIR}.`);
-    console.error('âŒ VÃ©rifie que le volume Railway est montÃ© sur /data.');
+    console.error(` Impossible decrire dans le stockage persistant ${DATA_DIR}.`);
+    console.error(' Verifie que le volume Railway est monte sur /data.');
     console.error(error);
     process.exit(1);
   }
@@ -198,7 +198,7 @@ function getTicketsData() {
 function getRoleByName(guild, expectedName) {
   const expected = normalize(expectedName);
 
-  // Cherche d'abord le nom exact, puis accepte les dÃ©corations/Ã©mojis autour du nom.
+  // Cherche d'abord le nom exact, puis accepte les decorations/emojis autour du nom.
   return guild.roles.cache.find(role => normalize(role.name) === expected) ||
     guild.roles.cache.find(role => normalize(role.name).includes(expected)) ||
     null;
@@ -247,7 +247,7 @@ function isTicketManager(member) {
     member &&
     (
       isConfigAuthorized(member.user) ||
-      hasRoleAtOrAbove(member, 'GÃ©rant Staff')
+      hasRoleAtOrAbove(member, 'Gerant Staff')
     )
   );
 }
@@ -293,11 +293,11 @@ function nextReference(typeKey) {
 function buildPanelPayload() {
   const embed = new EmbedBuilder()
     .setColor(0x2B2D31)
-    .setTitle('ðŸŽ« CENTRE Dâ€™ASSISTANCE â€” UNITY RP')
+    .setTitle(' CENTRE DASSISTANCE - UNITY RP')
     .setDescription(
-      'Bienvenue dans le centre dâ€™assistance officiel de **Unity RP**.\n\n' +
-      'SÃ©lectionnez ci-dessous la catÃ©gorie correspondant Ã  votre demande. ' +
-      'Un formulaire adaptÃ© sâ€™ouvrira automatiquement.'
+      'Bienvenue dans le centre dassistance officiel de **Unity RP**.\n\n' +
+      'Selectionnez ci-dessous la categorie correspondant a votre demande. ' +
+      'Un formulaire adapte souvrira automatiquement.'
     )
     .addFields(
       Object.values(TICKET_TYPES).map(type => ({
@@ -306,11 +306,11 @@ function buildPanelPayload() {
         inline: false
       }))
     )
-    .setFooter({ text: 'Unity RP â€¢ Un seul ticket par catÃ©gorie et par membre' });
+    .setFooter({ text: 'Unity RP - Un seul ticket par categorie et par membre' });
 
   const menu = new StringSelectMenuBuilder()
     .setCustomId('ticket:type')
-    .setPlaceholder('Choisissez une catÃ©gorie')
+    .setPlaceholder('Choisissez une categorie')
     .addOptions(
       Object.entries(TICKET_TYPES).map(([value, type]) => ({
         label: type.label,
@@ -347,27 +347,27 @@ function buildTicketModal(typeKey, concernedUserId = null) {
   if (typeKey === 'plainte_staff') {
     modal.addComponents(
       modalField('motif', 'Raison de la plainte', TextInputStyle.Short, true, 200),
-      modalField('description', 'Description complÃ¨te des faits', TextInputStyle.Paragraph, true, 1800),
+      modalField('description', 'Description complete des faits', TextInputStyle.Paragraph, true, 1800),
       modalField('date', 'Date et heure approximatives', TextInputStyle.Short, true, 100),
-      modalField('preuves', 'Preuves disponibles', TextInputStyle.Paragraph, false, 1000, 'Liens, captures, vidÃ©os, tÃ©moinsâ€¦')
+      modalField('preuves', 'Preuves disponibles', TextInputStyle.Paragraph, false, 1000, 'Liens, captures, videos, temoins...')
     );
   }
 
   if (typeKey === 'question_rc') {
     modal.addComponents(
       modalField('sujet', 'Sujet de la question', TextInputStyle.Short, true, 150),
-      modalField('regle', 'RÃ¨gle ou procÃ©dure concernÃ©e', TextInputStyle.Short, true, 200),
-      modalField('question', 'Question complÃ¨te', TextInputStyle.Paragraph, true, 1800),
+      modalField('regle', 'Regle ou procedure concernee', TextInputStyle.Short, true, 200),
+      modalField('question', 'Question complete', TextInputStyle.Paragraph, true, 1800),
       modalField('contexte', 'Contexte de la situation', TextInputStyle.Paragraph, true, 1200),
-      modalField('complement', 'Informations supplÃ©mentaires', TextInputStyle.Paragraph, false, 700)
+      modalField('complement', 'Informations supplementaires', TextInputStyle.Paragraph, false, 700)
     );
   }
 
   if (typeKey === 'question') {
     modal.addComponents(
       modalField('sujet', 'Sujet', TextInputStyle.Short, true, 150),
-      modalField('question', 'Question complÃ¨te', TextInputStyle.Paragraph, true, 1800),
-      modalField('contexte', 'Contexte supplÃ©mentaire', TextInputStyle.Paragraph, false, 1000)
+      modalField('question', 'Question complete', TextInputStyle.Paragraph, true, 1800),
+      modalField('contexte', 'Contexte supplementaire', TextInputStyle.Paragraph, false, 1000)
     );
   }
 
@@ -376,7 +376,7 @@ function buildTicketModal(typeKey, concernedUserId = null) {
       modalField('sujet', 'Sujet', TextInputStyle.Short, true, 150),
       modalField('motif', 'Motif du contact', TextInputStyle.Short, true, 200),
       modalField('message', 'Message complet', TextInputStyle.Paragraph, true, 1800),
-      modalField('priorite', 'PrioritÃ© : Normal, Important ou Urgent', TextInputStyle.Short, true, 30)
+      modalField('priorite', 'Priorite : Normal, Important ou Urgent', TextInputStyle.Short, true, 30)
     );
   }
 
@@ -396,13 +396,13 @@ function buildTicketModal(typeKey, concernedUserId = null) {
 function controlRows(ticket) {
   const claim = new ButtonBuilder()
     .setCustomId('ticket:claim')
-    .setLabel(ticket.claimedBy ? 'DÃ©jÃ  pris en charge' : 'Prendre en charge')
+    .setLabel(ticket.claimedBy ? 'Deja pris en charge' : 'Prendre en charge')
     .setStyle(ticket.claimedBy ? ButtonStyle.Secondary : ButtonStyle.Success)
     .setDisabled(Boolean(ticket.claimedBy));
 
   const release = new ButtonBuilder()
     .setCustomId('ticket:release')
-    .setLabel('LibÃ©rer')
+    .setLabel('Liberer')
     .setStyle(ButtonStyle.Primary)
     .setDisabled(!ticket.claimedBy);
 
@@ -447,12 +447,12 @@ function displayFieldName(id) {
     date: 'Date et heure',
     preuves: 'Preuves',
     sujet: 'Sujet',
-    regle: 'RÃ¨gle ou procÃ©dure',
+    regle: 'Regle ou procedure',
     question: 'Question',
     contexte: 'Contexte',
-    complement: 'Informations supplÃ©mentaires',
+    complement: 'Informations supplementaires',
     message: 'Message',
-    priorite: 'PrioritÃ©',
+    priorite: 'Priorite',
     serveur: 'Nom du serveur',
     lien: 'Lien Discord',
     membres: 'Nombre de membres',
@@ -465,22 +465,22 @@ function buildTicketEmbeds(ticket) {
   const type = TICKET_TYPES[ticket.type];
   const info = new EmbedBuilder()
     .setColor(type.color)
-    .setTitle(`${type.emoji} ${type.label.toUpperCase()} â€” ${ticketOwnerName(ticket)}`)
+    .setTitle(`${type.emoji} ${type.label.toUpperCase()} - ${ticketOwnerName(ticket)}`)
     .setDescription(
-      `**CrÃ©ateur :** <@${ticket.ownerId}>\n` +
+      `**Createur :** <@${ticket.ownerId}>\n` +
       `**Statut :** ${ticket.claimedBy ? 'En cours de traitement' : 'En attente'}\n` +
       `**Responsable :** ${ticket.claimedBy ? `<@${ticket.claimedBy}>` : 'Aucun'}`
     )
     .setTimestamp(ticket.createdAt)
     .addFields({
-      name: 'RÃ©fÃ©rence interne',
+      name: 'Reference interne',
       value: ticket.reference,
       inline: true
     });
 
   if (ticket.concernedUserId) {
     info.addFields({
-      name: 'Personne concernÃ©e',
+      name: 'Personne concernee',
       value: `<@${ticket.concernedUserId}>`,
       inline: false
     });
@@ -497,26 +497,26 @@ function buildTicketEmbeds(ticket) {
 
   if (ticket.type === 'plainte_staff') {
     info.addFields({
-      name: 'ðŸ” ConfidentialitÃ©',
+      name: ' Confidentialite',
       value:
-        'Visible uniquement par le crÃ©ateur, la GÃ©rance autorisÃ©e et la Fondation. ' +
-        'La personne concernÃ©e est explicitement exclue.',
+        'Visible uniquement par le createur, la Gerance autorisee et la Fondation. ' +
+        'La personne concernee est explicitement exclue.',
       inline: false
     });
   }
 
   const controls = new EmbedBuilder()
     .setColor(0x2B2D31)
-    .setTitle('ðŸ§­ CENTRE DE CONTRÃ”LE')
+    .setTitle(' CENTRE DE CONTROLE')
     .setDescription(
-      'ðŸ“— **Prendre en charge** â€” rÃ©server le dossier\n' +
-      'ðŸ“˜ **LibÃ©rer** â€” rendre le dossier disponible\n' +
-      'ðŸ‘¥ **Ajouter un membre** â€” donner un accÃ¨s temporaire\n' +
-      'ðŸ‘¤ **Retirer un membre** â€” retirer un accÃ¨s temporaire\n' +
-      'ðŸ“ **Transcription** â€” gÃ©nÃ©rer lâ€™historique\n' +
-      'ðŸ”’ **Fermer** â€” clÃ´turer le dossier'
+      ' **Prendre en charge** - reserver le dossier\n' +
+      ' **Liberer** - rendre le dossier disponible\n' +
+      ' **Ajouter un membre** - donner un acces temporaire\n' +
+      ' **Retirer un membre** - retirer un acces temporaire\n' +
+      ' **Transcription** - generer lhistorique\n' +
+      ' **Fermer** - cloturer le dossier'
     )
-    .setFooter({ text: 'Unity RP â€¢ Les actions sont enregistrÃ©es' });
+    .setFooter({ text: 'Unity RP - Les actions sont enregistrees' });
 
   return [info, controls];
 }
@@ -535,7 +535,7 @@ async function sendTicketLog(guild, embed, files = []) {
       });
     }
   } catch (error) {
-    console.error('âŒ Log ticket impossible :', error?.message || error);
+    console.error(' Log ticket impossible :', error?.message || error);
   }
 }
 
@@ -559,8 +559,8 @@ function buildPermissionOverwrites(guild, ownerId, typeKey, concernedUserId = nu
     }
   ];
 
-  // TrÃ¨s important : le bot doit garder un accÃ¨s individuel au salon.
-  // Sinon le refus de @everyone peut aussi lui masquer le ticket juste aprÃ¨s sa crÃ©ation.
+  // Tres important : le bot doit garder un acces individuel au salon.
+  // Sinon le refus de @everyone peut aussi lui masquer le ticket juste apres sa creation.
   if (botUserId) {
     overwrites.push({
       id: botUserId,
@@ -580,13 +580,13 @@ function buildPermissionOverwrites(guild, ownerId, typeKey, concernedUserId = nu
 
   if (typeKey === 'plainte_staff') {
     allowedRoles = [
-      ...getRolesAtOrAbove(guild, 'GÃ©rant Staff'),
+      ...getRolesAtOrAbove(guild, 'Gerant Staff'),
       ...getFoundationRoles(guild)
     ];
   } else if (typeKey === 'fondation') {
     allowedRoles = getFoundationRoles(guild);
   } else {
-    allowedRoles = getRolesAtOrAbove(guild, 'Ã‰quipe Staff');
+    allowedRoles = getRolesAtOrAbove(guild, 'Equipe Staff');
   }
 
   const seen = new Set();
@@ -639,7 +639,7 @@ function canHandleTicket(member, ticket) {
   if (isConfigAuthorized(member.user)) return true;
 
   if (ticket.type === 'plainte_staff') {
-    return hasRoleAtOrAbove(member, 'GÃ©rant Staff') ||
+    return hasRoleAtOrAbove(member, 'Gerant Staff') ||
       getFoundationRoles(member.guild).some(role => member.roles.cache.has(role.id));
   }
 
@@ -647,9 +647,9 @@ function canHandleTicket(member, ticket) {
     return getFoundationRoles(member.guild).some(role => member.roles.cache.has(role.id));
   }
 
-  // L'Ã‰quipe Staff peut prendre en charge et fermer ces catÃ©gories normales.
+  // L'Equipe Staff peut prendre en charge et fermer ces categories normales.
   if (STAFF_HANDLED_TICKET_TYPES.has(ticket.type)) {
-    return hasRoleAtOrAbove(member, 'Ã‰quipe Staff');
+    return hasRoleAtOrAbove(member, 'Equipe Staff');
   }
 
   return false;
@@ -666,7 +666,7 @@ async function refreshTicketMessage(channel, ticket) {
     });
   } catch (error) {
     if (error?.code !== 10008) {
-      console.error('âŒ Actualisation ticket impossible :', error?.message || error);
+      console.error(' Actualisation ticket impossible :', error?.message || error);
     }
   }
 }
@@ -694,11 +694,11 @@ async function restoreOpenTickets(guild) {
       changed = true;
     }
 
-    // Migration automatique des anciens noms numÃ©rotÃ©s vers le nom d'utilisateur.
+    // Migration automatique des anciens noms numerotes vers le nom d'utilisateur.
     const desiredName = ticketChannelName(ticket.type, ownerUsername);
     if (channel.name !== desiredName) {
       await channel.setName(desiredName, 'Migration des tickets vers les noms utilisateurs').catch(error => {
-        console.warn(`âš ï¸ Renommage impossible pour ${channelId} :`, error?.message || error);
+        console.warn(` Renommage impossible pour ${channelId} :`, error?.message || error);
       });
     }
 
@@ -707,7 +707,7 @@ async function restoreOpenTickets(guild) {
       controlMessage = await channel.messages.fetch(ticket.controlMessageId).catch(() => null);
     }
 
-    // Une mise Ã  jour ne doit jamais casser les boutons d'un ticket dÃ©jÃ  ouvert.
+    // Une mise a jour ne doit jamais casser les boutons d'un ticket deja ouvert.
     if (!controlMessage) {
       controlMessage = await channel.send({
         content: `<@${ticket.ownerId}>`,
@@ -715,7 +715,7 @@ async function restoreOpenTickets(guild) {
         components: controlRows(ticket),
         allowedMentions: { users: [ticket.ownerId] }
       }).catch(error => {
-        console.error(`âŒ Restauration du ticket ${channelId} impossible :`, error?.message || error);
+        console.error(` Restauration du ticket ${channelId} impossible :`, error?.message || error);
         return null;
       });
 
@@ -729,7 +729,7 @@ async function restoreOpenTickets(guild) {
         components: controlRows(ticket),
         allowedMentions: { parse: ['users'] }
       }).catch(error => {
-        console.error(`âŒ Actualisation du ticket ${channelId} impossible :`, error?.message || error);
+        console.error(` Actualisation du ticket ${channelId} impossible :`, error?.message || error);
       });
     }
 
@@ -739,7 +739,7 @@ async function restoreOpenTickets(guild) {
   if (changed) writeJson(TICKETS_FILE, ticketsData);
 
   console.log(
-    `ðŸŽ« Tickets restaurÃ©s sur ${guild.name} : ${restored} actif(s), ${missing} salon(s) introuvable(s)`
+    ` Tickets restaures sur ${guild.name} : ${restored} actif(s), ${missing} salon(s) introuvable(s)`
   );
 }
 
@@ -747,7 +747,7 @@ async function createTicketFromModal(interaction, typeKey, concernedUserId = nul
   const type = TICKET_TYPES[typeKey];
   if (!type) {
     return interaction.reply({
-      content: 'âŒ CatÃ©gorie invalide.',
+      content: ' Categorie invalide.',
       flags: MessageFlags.Ephemeral
     });
   }
@@ -755,7 +755,7 @@ async function createTicketFromModal(interaction, typeKey, concernedUserId = nul
   const config = getTicketConfig();
   if (!config.ticketCategoryId) {
     return interaction.reply({
-      content: 'âŒ La catÃ©gorie des tickets nâ€™est pas configurÃ©e.',
+      content: ' La categorie des tickets nest pas configuree.',
       flags: MessageFlags.Ephemeral
     });
   }
@@ -771,7 +771,7 @@ async function createTicketFromModal(interaction, typeKey, concernedUserId = nul
 
   if (duplicate) {
     return interaction.reply({
-      content: `âŒ Vous avez dÃ©jÃ  un ticket de cette catÃ©gorie : <#${duplicate[0]}>`,
+      content: ` Vous avez deja un ticket de cette categorie : <#${duplicate[0]}>`,
       flags: MessageFlags.Ephemeral
     });
   }
@@ -780,7 +780,7 @@ async function createTicketFromModal(interaction, typeKey, concernedUserId = nul
     const link = fieldValue(interaction, 'lien');
     if (!/^https?:\/\/(www\.)?(discord\.gg|discord\.com\/invite)\//i.test(link)) {
       return interaction.reply({
-        content: 'âŒ Le lien Discord fourni nâ€™est pas valide.',
+        content: ' Le lien Discord fourni nest pas valide.',
         flags: MessageFlags.Ephemeral
       });
     }
@@ -807,7 +807,7 @@ async function createTicketFromModal(interaction, typeKey, concernedUserId = nul
       name: ticketChannelName(typeKey, interaction.user.username),
       type: ChannelType.GuildText,
       parent: config.ticketCategoryId,
-      topic: `${reference} | ${type.label} | CrÃ©ateur: ${interaction.user.id}`,
+      topic: `${reference} | ${type.label} | Createur: ${interaction.user.id}`,
       permissionOverwrites: buildPermissionOverwrites(
         interaction.guild,
         interaction.user.id,
@@ -817,11 +817,11 @@ async function createTicketFromModal(interaction, typeKey, concernedUserId = nul
     });
 
     // Discord peut parfois renvoyer le salon avant qu'il soit totalement disponible.
-    // On attend briÃ¨vement puis on le rÃ©cupÃ¨re Ã  nouveau depuis l'API.
+    // On attend brievement puis on le recupere a nouveau depuis l'API.
     await new Promise(resolve => setTimeout(resolve, 800));
 
-    // Le salon retournÃ© par guild.channels.create est dÃ©jÃ  utilisable.
-    // On tente ensuite un fetch, mais on garde le salon crÃ©Ã© comme solution de secours.
+    // Le salon retourne par guild.channels.create est deja utilisable.
+    // On tente ensuite un fetch, mais on garde le salon cree comme solution de secours.
     let channel = await interaction.guild.channels
       .fetch(createdChannel.id, { force: true })
       .catch(() => createdChannel);
@@ -848,7 +848,7 @@ async function createTicketFromModal(interaction, typeKey, concernedUserId = nul
 
     let message = null;
 
-    // Deux essais maximum pour Ã©viter l'erreur Discord 10003 (Unknown Channel).
+    // Deux essais maximum pour eviter l'erreur Discord 10003 (Unknown Channel).
     for (let attempt = 1; attempt <= 2; attempt += 1) {
       try {
         message = await channel.send({
@@ -873,7 +873,7 @@ async function createTicketFromModal(interaction, typeKey, concernedUserId = nul
     }
 
     if (!message) {
-      throw new Error('Impossible dâ€™envoyer le message initial du ticket.');
+      throw new Error('Impossible denvoyer le message initial du ticket.');
     }
 
     ticket.controlMessageId = message.id;
@@ -881,34 +881,34 @@ async function createTicketFromModal(interaction, typeKey, concernedUserId = nul
     writeJson(TICKETS_FILE, ticketsData);
 
     await interaction.editReply({
-      content: `âœ… Votre ticket **${interaction.user.username}** a Ã©tÃ© crÃ©Ã© : ${channel}`
+      content: ` Votre ticket **${interaction.user.username}** a ete cree : ${channel}`
     });
 
     await sendTicketLog(
       interaction.guild,
       new EmbedBuilder()
         .setColor(type.color)
-        .setTitle(`${type.emoji} Dossier crÃ©Ã© â€” ${reference}`)
+        .setTitle(`${type.emoji} Dossier cree - ${reference}`)
         .addFields(
-          { name: 'CrÃ©ateur', value: `<@${interaction.user.id}>`, inline: true },
-          { name: 'CatÃ©gorie', value: type.label, inline: true },
+          { name: 'Createur', value: `<@${interaction.user.id}>`, inline: true },
+          { name: 'Categorie', value: type.label, inline: true },
           { name: 'Salon', value: `${channel}`, inline: true }
         )
         .setTimestamp()
     );
   } catch (error) {
-    console.error('âŒ CrÃ©ation du ticket impossible :', error);
+    console.error(' Creation du ticket impossible :', error);
 
-    // Nettoyage : si un salon vide a Ã©tÃ© crÃ©Ã©, on le supprime.
+    // Nettoyage : si un salon vide a ete cree, on le supprime.
     if (createdChannel) {
-      await createdChannel.delete('Ã‰chec de crÃ©ation du ticket').catch(() => {});
+      await createdChannel.delete('Echec de creation du ticket').catch(() => {});
     }
 
     return interaction.editReply({
       content:
-        'âŒ Le ticket nâ€™a pas pu Ãªtre crÃ©Ã© correctement.\n' +
-        'VÃ©rifiez que le bot possÃ¨de **Voir les salons**, **GÃ©rer les salons**, ' +
-        '**Envoyer des messages** et **GÃ©rer les permissions** dans la catÃ©gorie configurÃ©e.'
+        ' Le ticket na pas pu etre cree correctement.\n' +
+        'Verifiez que le bot possede **Voir les salons**, **Gerer les salons**, ' +
+        '**Envoyer des messages** et **Gerer les permissions** dans la categorie configuree.'
     });
   }
 }
@@ -930,14 +930,14 @@ async function makeTranscript(channel, ticket) {
 
   const lines = [
     `TRANSCRIPTION UNITY RP`,
-    `RÃ©fÃ©rence : ${ticket.reference}`,
-    `CatÃ©gorie : ${TICKET_TYPES[ticket.type].label}`,
-    `CrÃ©ateur : ${ticket.ownerId}`,
+    `Reference : ${ticket.reference}`,
+    `Categorie : ${TICKET_TYPES[ticket.type].label}`,
+    `Createur : ${ticket.ownerId}`,
     `Responsable : ${ticket.claimedBy || 'Aucun'}`,
-    `CrÃ©Ã© le : ${new Date(ticket.createdAt).toLocaleString('fr-FR')}`,
+    `Cree le : ${new Date(ticket.createdAt).toLocaleString('fr-FR')}`,
     '',
     'MESSAGES',
-    'â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”'
+    ''
   ];
 
   for (const message of allMessages) {
@@ -947,7 +947,7 @@ async function makeTranscript(channel, ticket) {
     lines.push(content);
 
     for (const attachment of message.attachments.values()) {
-      lines.push(`PiÃ¨ce jointe : ${attachment.url}`);
+      lines.push(`Piece jointe : ${attachment.url}`);
     }
 
     lines.push('');
@@ -980,18 +980,18 @@ function buildCommands() {
 
   const config = new SlashCommandBuilder()
     .setName('config')
-    .setDescription('Configuration privÃ©e du bot Unity RP.')
+    .setDescription('Configuration privee du bot Unity RP.')
     .addSubcommand(sub =>
       sub
         .setName('role')
-        .setDescription('Ajoute ou dÃ©place un rÃ´le dans la hiÃ©rarchie.')
+        .setDescription('Ajoute ou deplace un role dans la hierarchie.')
         .addRoleOption(option =>
-          option.setName('role').setDescription('RÃ´le').setRequired(true)
+          option.setName('role').setDescription('Role').setRequired(true)
         )
         .addStringOption(option =>
           option
             .setName('categorie')
-            .setDescription('CatÃ©gorie')
+            .setDescription('Categorie')
             .setRequired(true)
             .addChoices(...categoryChoices)
         )
@@ -999,21 +999,21 @@ function buildCommands() {
     .addSubcommand(sub =>
       sub
         .setName('supprimer')
-        .setDescription('Retire un rÃ´le de la hiÃ©rarchie.')
+        .setDescription('Retire un role de la hierarchie.')
         .addRoleOption(option =>
-          option.setName('role').setDescription('RÃ´le').setRequired(true)
+          option.setName('role').setDescription('Role').setRequired(true)
         )
     )
     .addSubcommand(sub =>
-      sub.setName('voir').setDescription('Voir la hiÃ©rarchie configurÃ©e.')
+      sub.setName('voir').setDescription('Voir la hierarchie configuree.')
     )
     .addSubcommand(sub =>
-      sub.setName('vider').setDescription('Vider la hiÃ©rarchie.')
+      sub.setName('vider').setDescription('Vider la hierarchie.')
     )
     .addSubcommandGroup(group =>
       group
         .setName('acces')
-        .setDescription('GÃ©rer les personnes autorisÃ©es aux commandes.')
+        .setDescription('Gerer les personnes autorisees aux commandes.')
         .addSubcommand(sub =>
           sub
             .setName('ajouter')
@@ -1025,19 +1025,19 @@ function buildCommands() {
         .addSubcommand(sub =>
           sub
             .setName('retirer')
-            .setDescription('Retirer lâ€™accÃ¨s Ã  un membre.')
+            .setDescription('Retirer lacces a un membre.')
             .addUserOption(option =>
               option.setName('membre').setDescription('Membre').setRequired(true)
             )
         )
         .addSubcommand(sub =>
-          sub.setName('voir').setDescription('Voir les membres autorisÃ©s.')
+          sub.setName('voir').setDescription('Voir les membres autorises.')
         )
     )
     .addSubcommandGroup(group =>
       group
         .setName('ticket')
-        .setDescription('Configurer le systÃ¨me de tickets.')
+        .setDescription('Configurer le systeme de tickets.')
         .addSubcommand(sub =>
           sub
             .setName('salon')
@@ -1053,11 +1053,11 @@ function buildCommands() {
         .addSubcommand(sub =>
           sub
             .setName('categorie')
-            .setDescription('Choisir la catÃ©gorie de crÃ©ation.')
+            .setDescription('Choisir la categorie de creation.')
             .addChannelOption(option =>
               option
                 .setName('categorie')
-                .setDescription('CatÃ©gorie des tickets')
+                .setDescription('Categorie des tickets')
                 .addChannelTypes(ChannelType.GuildCategory)
                 .setRequired(true)
             )
@@ -1084,7 +1084,7 @@ function buildCommands() {
 
   const hierarchy = new SlashCommandBuilder()
     .setName('hierarchie')
-    .setDescription('Publie la hiÃ©rarchie du serveur.');
+    .setDescription('Publie la hierarchie du serveur.');
 
   return [config.toJSON(), hierarchy.toJSON()];
 }
@@ -1092,18 +1092,18 @@ function buildCommands() {
 client.once(Events.ClientReady, async readyClient => {
   ensureData();
 
-  console.log('âœ… UNITY RP BOT CONNECTÃ‰');
-  console.log(`ðŸ’¾ Stockage persistant utilisÃ© : ${DATA_DIR}`);
-  console.log(`ðŸ’¾ HiÃ©rarchie : ${HIERARCHY_FILE}`);
-  console.log(`ðŸ’¾ Tickets : ${TICKETS_FILE}`);
-  console.log(`ðŸ¤– ${readyClient.user.tag}`);
-  console.log(`ðŸŒ Serveurs : ${readyClient.guilds.cache.size}`);
-  console.log(`ðŸ” PropriÃ©taire : ${OWNER_USERNAME}`);
+  console.log(' UNITY RP BOT CONNECTE');
+  console.log(` Stockage persistant utilise : ${DATA_DIR}`);
+  console.log(` Hierarchie : ${HIERARCHY_FILE}`);
+  console.log(` Tickets : ${TICKETS_FILE}`);
+  console.log(` ${readyClient.user.tag}`);
+  console.log(` Serveurs : ${readyClient.guilds.cache.size}`);
+  console.log(` Proprietaire : ${OWNER_USERNAME}`);
 
   try {
     await readyClient.application.commands.set([]);
   } catch (error) {
-    console.warn('âš ï¸ Nettoyage global :', error?.message || error);
+    console.warn(' Nettoyage global :', error?.message || error);
   }
 
   const commands = buildCommands();
@@ -1113,9 +1113,9 @@ client.once(Events.ClientReady, async readyClient => {
       await guild.members.fetch();
       await guild.commands.set(commands);
       await restoreOpenTickets(guild);
-      console.log(`âœ… Commandes installÃ©es sur ${guild.name}`);
+      console.log(` Commandes installees sur ${guild.name}`);
     } catch (error) {
-      console.error(`âŒ Initialisation ${guild.name} :`, error);
+      console.error(` Initialisation ${guild.name} :`, error);
     }
   }
 });
@@ -1126,7 +1126,7 @@ client.on(Events.InteractionCreate, async interaction => {
       if (interaction.commandName === 'config') {
         if (!isConfigAuthorized(interaction.user)) {
           return interaction.reply({
-            content: 'âŒ Cette commande est privÃ©e.',
+            content: ' Cette commande est privee.',
             flags: MessageFlags.Ephemeral
           });
         }
@@ -1137,7 +1137,7 @@ client.on(Events.InteractionCreate, async interaction => {
         if (group === 'acces') {
           if (!isOwner(interaction.user)) {
             return interaction.reply({
-              content: 'âŒ Seul ytmaxed peut gÃ©rer les accÃ¨s.',
+              content: ' Seul ytmaxed peut gerer les acces.',
               flags: MessageFlags.Ephemeral
             });
           }
@@ -1152,7 +1152,7 @@ client.on(Events.InteractionCreate, async interaction => {
             }
 
             return interaction.reply({
-              content: `âœ… ${member} peut maintenant utiliser les commandes privÃ©es.`,
+              content: ` ${member} peut maintenant utiliser les commandes privees.`,
               flags: MessageFlags.Ephemeral
             });
           }
@@ -1163,7 +1163,7 @@ client.on(Events.InteractionCreate, async interaction => {
             writeJson(ACCESS_FILE, access);
 
             return interaction.reply({
-              content: `âœ… AccÃ¨s retirÃ© Ã  ${member}.`,
+              content: ` Acces retire a ${member}.`,
               flags: MessageFlags.Ephemeral
             });
           }
@@ -1171,10 +1171,10 @@ client.on(Events.InteractionCreate, async interaction => {
           if (sub === 'voir') {
             const list = access.userIds.length
               ? access.userIds.map(id => `<@${id}>`).join('\n')
-              : '> Aucun membre supplÃ©mentaire';
+              : '> Aucun membre supplementaire';
 
             return interaction.reply({
-              content: `# ðŸ” ACCÃˆS PRIVÃ‰S\n\n**PropriÃ©taire :** ${OWNER_USERNAME}\n\n${list}`,
+              content: `#  ACCES PRIVES\n\n**Proprietaire :** ${OWNER_USERNAME}\n\n${list}`,
               allowedMentions: { parse: [] },
               flags: MessageFlags.Ephemeral
             });
@@ -1193,7 +1193,7 @@ client.on(Events.InteractionCreate, async interaction => {
             });
 
             return interaction.reply({
-              content: `âœ… Salon du panneau : ${channel}`,
+              content: ` Salon du panneau : ${channel}`,
               flags: MessageFlags.Ephemeral
             });
           }
@@ -1206,7 +1206,7 @@ client.on(Events.InteractionCreate, async interaction => {
             });
 
             return interaction.reply({
-              content: `âœ… CatÃ©gorie des tickets : **${category.name}**`,
+              content: ` Categorie des tickets : **${category.name}**`,
               flags: MessageFlags.Ephemeral
             });
           }
@@ -1219,7 +1219,7 @@ client.on(Events.InteractionCreate, async interaction => {
             });
 
             return interaction.reply({
-              content: `âœ… Salon des logs : ${channel}`,
+              content: ` Salon des logs : ${channel}`,
               flags: MessageFlags.Ephemeral
             });
           }
@@ -1227,7 +1227,7 @@ client.on(Events.InteractionCreate, async interaction => {
           if (sub === 'panneau') {
             if (!config.panelChannelId) {
               return interaction.reply({
-                content: 'âŒ Configure dâ€™abord le salon du panneau.',
+                content: ' Configure dabord le salon du panneau.',
                 flags: MessageFlags.Ephemeral
               });
             }
@@ -1254,19 +1254,19 @@ client.on(Events.InteractionCreate, async interaction => {
             }
 
             return interaction.editReply({
-              content: `âœ… Panneau publiÃ© : ${message.url}`
+              content: ` Panneau publie : ${message.url}`
             });
           }
 
           if (sub === 'voir') {
             return interaction.reply({
               content:
-                '# ðŸŽ« CONFIGURATION DES TICKETS\n\n' +
-                `**Panneau :** ${config.panelChannelId ? `<#${config.panelChannelId}>` : 'Non configurÃ©'}\n` +
-                `**CatÃ©gorie :** ${config.ticketCategoryId ? `<#${config.ticketCategoryId}>` : 'Non configurÃ©e'}\n` +
-                `**Logs :** ${config.logsChannelId ? `<#${config.logsChannelId}>` : 'Non configurÃ©'}\n\n` +
-                '**Tickets normaux :** Ã‰quipe Staff et rÃ´les supÃ©rieurs\n' +
-                '**Plainte Staff :** GÃ©rance/Fondation, personne concernÃ©e exclue\n' +
+                '#  CONFIGURATION DES TICKETS\n\n' +
+                `**Panneau :** ${config.panelChannelId ? `<#${config.panelChannelId}>` : 'Non configure'}\n` +
+                `**Categorie :** ${config.ticketCategoryId ? `<#${config.ticketCategoryId}>` : 'Non configuree'}\n` +
+                `**Logs :** ${config.logsChannelId ? `<#${config.logsChannelId}>` : 'Non configure'}\n\n` +
+                '**Tickets normaux :** Equipe Staff et roles superieurs\n' +
+                '**Plainte Staff :** Gerance/Fondation, personne concernee exclue\n' +
                 '**Fondation :** Fondation uniquement',
               allowedMentions: { parse: [] },
               flags: MessageFlags.Ephemeral
@@ -1289,7 +1289,7 @@ client.on(Events.InteractionCreate, async interaction => {
           await updateSavedHierarchyMessage(interaction.guild);
 
           return interaction.reply({
-            content: `âœ… ${role} ajoutÃ© dans **${category}**.`,
+            content: ` ${role} ajoute dans **${category}**.`,
             flags: MessageFlags.Ephemeral
           });
         }
@@ -1305,18 +1305,18 @@ client.on(Events.InteractionCreate, async interaction => {
           await updateSavedHierarchyMessage(interaction.guild);
 
           return interaction.reply({
-            content: `âœ… ${role} retirÃ© de la hiÃ©rarchie.`,
+            content: ` ${role} retire de la hierarchie.`,
             flags: MessageFlags.Ephemeral
           });
         }
 
         if (sub === 'voir') {
-          let content = '# âš™ï¸ HIÃ‰RARCHIE CONFIGURÃ‰E\n\n';
+          let content = '#  HIERARCHIE CONFIGUREE\n\n';
           for (const category of HIERARCHY_CATEGORIES) {
             content += `## ${category}\n`;
             content += hierarchy[category].length
               ? `${hierarchy[category].map(id => `<@&${id}>`).join('\n')}\n\n`
-              : '> Aucun rÃ´le\n\n';
+              : '> Aucun role\n\n';
           }
 
           return interaction.reply({
@@ -1334,7 +1334,7 @@ client.on(Events.InteractionCreate, async interaction => {
           await updateSavedHierarchyMessage(interaction.guild);
 
           return interaction.reply({
-            content: 'âœ… HiÃ©rarchie vidÃ©e.',
+            content: ' Hierarchie videe.',
             flags: MessageFlags.Ephemeral
           });
         }
@@ -1343,7 +1343,7 @@ client.on(Events.InteractionCreate, async interaction => {
       if (interaction.commandName === 'hierarchie') {
         if (!isConfigAuthorized(interaction.user)) {
           return interaction.reply({
-            content: 'âŒ Vous nâ€™Ãªtes pas autorisÃ©.',
+            content: ' Vous netes pas autorise.',
             flags: MessageFlags.Ephemeral
           });
         }
@@ -1369,12 +1369,12 @@ client.on(Events.InteractionCreate, async interaction => {
       if (typeKey === 'plainte_staff') {
         const selector = new UserSelectMenuBuilder()
           .setCustomId('ticket:complaint_user')
-          .setPlaceholder('SÃ©lectionnez le membre du staff concernÃ©')
+          .setPlaceholder('Selectionnez le membre du staff concerne')
           .setMinValues(1)
           .setMaxValues(1);
 
         return interaction.reply({
-          content: 'ðŸ” SÃ©lectionnez la personne concernÃ©e. Elle sera totalement exclue du ticket.',
+          content: ' Selectionnez la personne concernee. Elle sera totalement exclue du ticket.',
           components: [new ActionRowBuilder().addComponents(selector)],
           flags: MessageFlags.Ephemeral
         });
@@ -1388,7 +1388,7 @@ client.on(Events.InteractionCreate, async interaction => {
 
       if (concernedUserId === interaction.user.id) {
         return interaction.update({
-          content: 'âŒ Vous ne pouvez pas vous sÃ©lectionner vous-mÃªme.',
+          content: ' Vous ne pouvez pas vous selectionner vous-meme.',
           components: []
         });
       }
@@ -1409,7 +1409,7 @@ client.on(Events.InteractionCreate, async interaction => {
 
       if (!ticket || ticket.status !== 'open') {
         return interaction.reply({
-          content: 'âŒ Ce dossier est introuvable ou fermÃ©.',
+          content: ' Ce dossier est introuvable ou ferme.',
           flags: MessageFlags.Ephemeral
         });
       }
@@ -1417,14 +1417,14 @@ client.on(Events.InteractionCreate, async interaction => {
       if (interaction.customId === 'ticket:claim') {
         if (!canHandleTicket(interaction.member, ticket)) {
           return interaction.reply({
-            content: 'âŒ Vous ne pouvez pas prendre en charge ce dossier.',
+            content: ' Vous ne pouvez pas prendre en charge ce dossier.',
             flags: MessageFlags.Ephemeral
           });
         }
 
         if (ticket.claimedBy) {
           return interaction.reply({
-            content: `âŒ DÃ©jÃ  pris en charge par <@${ticket.claimedBy}>.`,
+            content: ` Deja pris en charge par <@${ticket.claimedBy}>.`,
             flags: MessageFlags.Ephemeral
           });
         }
@@ -1434,7 +1434,7 @@ client.on(Events.InteractionCreate, async interaction => {
         await refreshTicketMessage(interaction.channel, ticket);
 
         await interaction.reply({
-          content: `âœ… Dossier pris en charge par ${interaction.user}.`,
+          content: ` Dossier pris en charge par ${interaction.user}.`,
           allowedMentions: { users: [interaction.user.id] }
         });
 
@@ -1442,7 +1442,7 @@ client.on(Events.InteractionCreate, async interaction => {
           interaction.guild,
           new EmbedBuilder()
             .setColor(0x57F287)
-            .setTitle(`ðŸ“— Dossier pris en charge â€” ${ticket.reference}`)
+            .setTitle(` Dossier pris en charge - ${ticket.reference}`)
             .setDescription(`Responsable : <@${interaction.user.id}>`)
             .setTimestamp()
         );
@@ -1455,7 +1455,7 @@ client.on(Events.InteractionCreate, async interaction => {
 
         if (!allowed) {
           return interaction.reply({
-            content: 'âŒ Seul le responsable, la GÃ©rance ou une personne autorisÃ©e peut libÃ©rer ce dossier.',
+            content: ' Seul le responsable, la Gerance ou une personne autorisee peut liberer ce dossier.',
             flags: MessageFlags.Ephemeral
           });
         }
@@ -1465,7 +1465,7 @@ client.on(Events.InteractionCreate, async interaction => {
         await refreshTicketMessage(interaction.channel, ticket);
 
         return interaction.reply({
-          content: `ðŸ“˜ Dossier libÃ©rÃ© par ${interaction.user}.`,
+          content: ` Dossier libere par ${interaction.user}.`,
           allowedMentions: { users: [interaction.user.id] }
         });
       }
@@ -1473,19 +1473,19 @@ client.on(Events.InteractionCreate, async interaction => {
       if (interaction.customId === 'ticket:add_member') {
         if (!canHandleTicket(interaction.member, ticket)) {
           return interaction.reply({
-            content: 'âŒ Vous ne pouvez pas ajouter de membre.',
+            content: ' Vous ne pouvez pas ajouter de membre.',
             flags: MessageFlags.Ephemeral
           });
         }
 
         const selector = new UserSelectMenuBuilder()
           .setCustomId('ticket:add_member_select')
-          .setPlaceholder('SÃ©lectionnez un membre Ã  ajouter')
+          .setPlaceholder('Selectionnez un membre a ajouter')
           .setMinValues(1)
           .setMaxValues(1);
 
         return interaction.reply({
-          content: 'SÃ©lectionnez le membre Ã  ajouter.',
+          content: 'Selectionnez le membre a ajouter.',
           components: [new ActionRowBuilder().addComponents(selector)],
           flags: MessageFlags.Ephemeral
         });
@@ -1494,19 +1494,19 @@ client.on(Events.InteractionCreate, async interaction => {
       if (interaction.customId === 'ticket:remove_member') {
         if (!canHandleTicket(interaction.member, ticket)) {
           return interaction.reply({
-            content: 'âŒ Vous ne pouvez pas retirer de membre.',
+            content: ' Vous ne pouvez pas retirer de membre.',
             flags: MessageFlags.Ephemeral
           });
         }
 
         const selector = new UserSelectMenuBuilder()
           .setCustomId('ticket:remove_member_select')
-          .setPlaceholder('SÃ©lectionnez un membre Ã  retirer')
+          .setPlaceholder('Selectionnez un membre a retirer')
           .setMinValues(1)
           .setMaxValues(1);
 
         return interaction.reply({
-          content: 'SÃ©lectionnez le membre Ã  retirer.',
+          content: 'Selectionnez le membre a retirer.',
           components: [new ActionRowBuilder().addComponents(selector)],
           flags: MessageFlags.Ephemeral
         });
@@ -1515,7 +1515,7 @@ client.on(Events.InteractionCreate, async interaction => {
       if (interaction.customId === 'ticket:transcript') {
         if (!canHandleTicket(interaction.member, ticket) && interaction.user.id !== ticket.ownerId) {
           return interaction.reply({
-            content: 'âŒ Vous ne pouvez pas gÃ©nÃ©rer la transcription.',
+            content: ' Vous ne pouvez pas generer la transcription.',
             flags: MessageFlags.Ephemeral
           });
         }
@@ -1524,7 +1524,7 @@ client.on(Events.InteractionCreate, async interaction => {
         const file = await makeTranscript(interaction.channel, ticket);
 
         await interaction.editReply({
-          content: `âœ… Transcription de **${ticket.reference}** :`,
+          content: ` Transcription de **${ticket.reference}** :`,
           files: [file]
         });
 
@@ -1538,7 +1538,7 @@ client.on(Events.InteractionCreate, async interaction => {
 
         if (!allowed) {
           return interaction.reply({
-            content: 'âŒ Vous ne pouvez pas fermer ce dossier.',
+            content: ' Vous ne pouvez pas fermer ce dossier.',
             flags: MessageFlags.Ephemeral
           });
         }
@@ -1555,7 +1555,7 @@ client.on(Events.InteractionCreate, async interaction => {
 
         return interaction.reply({
           content:
-            'âš ï¸ **Confirmation**\nUne transcription sera crÃ©Ã©e avant la suppression du salon.',
+            ' **Confirmation**\nUne transcription sera creee avant la suppression du salon.',
           components: [new ActionRowBuilder().addComponents(confirm, cancel)],
           flags: MessageFlags.Ephemeral
         });
@@ -1563,7 +1563,7 @@ client.on(Events.InteractionCreate, async interaction => {
 
       if (interaction.customId === 'ticket:close_cancel') {
         return interaction.update({
-          content: 'âœ… Fermeture annulÃ©e.',
+          content: ' Fermeture annulee.',
           components: []
         });
       }
@@ -1575,13 +1575,13 @@ client.on(Events.InteractionCreate, async interaction => {
 
         if (!allowed) {
           return interaction.reply({
-            content: 'âŒ Vous ne pouvez pas fermer ce dossier.',
+            content: ' Vous ne pouvez pas fermer ce dossier.',
             flags: MessageFlags.Ephemeral
           });
         }
 
         await interaction.update({
-          content: 'ðŸ”’ Fermeture en coursâ€¦',
+          content: ' Fermeture en cours...',
           components: []
         });
 
@@ -1595,11 +1595,11 @@ client.on(Events.InteractionCreate, async interaction => {
           interaction.guild,
           new EmbedBuilder()
             .setColor(0xED4245)
-            .setTitle(`ðŸ”’ Dossier fermÃ© â€” ${ticket.reference}`)
+            .setTitle(` Dossier ferme - ${ticket.reference}`)
             .addFields(
-              { name: 'CrÃ©ateur', value: `<@${ticket.ownerId}>`, inline: true },
+              { name: 'Createur', value: `<@${ticket.ownerId}>`, inline: true },
               { name: 'Responsable', value: ticket.claimedBy ? `<@${ticket.claimedBy}>` : 'Aucun', inline: true },
-              { name: 'FermÃ© par', value: `<@${interaction.user.id}>`, inline: true }
+              { name: 'Ferme par', value: `<@${interaction.user.id}>`, inline: true }
             )
             .setTimestamp(),
           [transcript]
@@ -1609,19 +1609,19 @@ client.on(Events.InteractionCreate, async interaction => {
           const owner = await client.users.fetch(ticket.ownerId);
           if (ticket.type !== 'plainte_staff' || owner.id !== ticket.concernedUserId) {
             await owner.send({
-              content: `ðŸ“ Transcription de votre dossier **${ticket.reference}**.`,
+              content: ` Transcription de votre dossier **${ticket.reference}**.`,
               files: [await makeTranscript(interaction.channel, ticket)]
             });
           }
         } catch {
-          // Les MP peuvent Ãªtre fermÃ©s.
+          // Les MP peuvent etre fermes.
         }
 
         setTimeout(async () => {
           try {
-            await interaction.channel.delete(`Dossier ${ticket.reference} fermÃ©`);
+            await interaction.channel.delete(`Dossier ${ticket.reference} ferme`);
           } catch (error) {
-            console.error('âŒ Suppression du ticket impossible :', error?.message || error);
+            console.error(' Suppression du ticket impossible :', error?.message || error);
           }
         }, 10000);
 
@@ -1638,14 +1638,14 @@ client.on(Events.InteractionCreate, async interaction => {
 
       if (!ticket || ticket.status !== 'open') {
         return interaction.update({
-          content: 'âŒ Ce dossier est introuvable.',
+          content: ' Ce dossier est introuvable.',
           components: []
         });
       }
 
       if (!canHandleTicket(interaction.member, ticket)) {
         return interaction.update({
-          content: 'âŒ Vous ne pouvez pas modifier les accÃ¨s.',
+          content: ' Vous ne pouvez pas modifier les acces.',
           components: []
         });
       }
@@ -1655,7 +1655,7 @@ client.on(Events.InteractionCreate, async interaction => {
       if (interaction.customId === 'ticket:add_member_select') {
         if (ticket.concernedUserId === userId) {
           return interaction.update({
-            content: 'âŒ La personne concernÃ©e par la plainte ne peut jamais Ãªtre ajoutÃ©e.',
+            content: ' La personne concernee par la plainte ne peut jamais etre ajoutee.',
             components: []
           });
         }
@@ -1671,7 +1671,7 @@ client.on(Events.InteractionCreate, async interaction => {
         writeJson(TICKETS_FILE, ticketsData);
 
         return interaction.update({
-          content: `âœ… <@${userId}> a Ã©tÃ© ajoutÃ© au dossier.`,
+          content: ` <@${userId}> a ete ajoute au dossier.`,
           components: [],
           allowedMentions: { users: [userId] }
         });
@@ -1679,7 +1679,7 @@ client.on(Events.InteractionCreate, async interaction => {
 
       if (userId === ticket.ownerId) {
         return interaction.update({
-          content: 'âŒ Le crÃ©ateur du dossier ne peut pas Ãªtre retirÃ©.',
+          content: ' Le createur du dossier ne peut pas etre retire.',
           components: []
         });
       }
@@ -1689,16 +1689,16 @@ client.on(Events.InteractionCreate, async interaction => {
       writeJson(TICKETS_FILE, ticketsData);
 
       return interaction.update({
-        content: `âœ… <@${userId}> a Ã©tÃ© retirÃ© du dossier.`,
+        content: ` <@${userId}> a ete retire du dossier.`,
         components: [],
         allowedMentions: { users: [userId] }
       });
     }
   } catch (error) {
-    console.error('âŒ Interaction impossible :', error);
+    console.error(' Interaction impossible :', error);
 
     const payload = {
-      content: 'âŒ Une erreur est survenue.',
+      content: ' Une erreur est survenue.',
       flags: MessageFlags.Ephemeral
     };
 
@@ -1735,14 +1735,14 @@ client.on(Events.ChannelDelete, channel => {
 
 client.on(Events.Error, error => {
   if (error?.code === 10003) {
-    console.warn('âš ï¸ Discord a signalÃ© un salon introuvable (10003). Le ticket sera nettoyÃ© automatiquement.');
+    console.warn(' Discord a signale un salon introuvable (10003). Le ticket sera nettoye automatiquement.');
     return;
   }
 
-  console.error('âŒ Discord :', error);
+  console.error(' Discord :', error);
 });
-process.on('unhandledRejection', error => console.error('âŒ Promesse non gÃ©rÃ©e :', error));
-process.on('uncaughtException', error => console.error('âŒ Erreur non interceptÃ©e :', error));
+process.on('unhandledRejection', error => console.error(' Promesse non geree :', error));
+process.on('uncaughtException', error => console.error(' Erreur non interceptee :', error));
 
 let shuttingDown = false;
 
@@ -1750,7 +1750,7 @@ function gracefulShutdown(signal) {
   if (shuttingDown) return;
   shuttingDown = true;
 
-  console.log(`ðŸ›‘ ${signal} reÃ§u : arrÃªt propre.`);
+  console.log(` ${signal} recu : arret propre.`);
   client.destroy();
   setTimeout(() => process.exit(0), 250);
 }
