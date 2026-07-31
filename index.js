@@ -290,6 +290,86 @@ function nextReference(typeKey) {
   return `${TICKET_TYPES[typeKey].prefix}-${padded}`;
 }
 
+
+function hierarchyCategoryLabel(category) {
+  const labels = {
+    'FONDATION': 'FONDATION',
+    'MEMBRES DE LA GERANCE': 'MEMBRES DE LA GERANCE',
+    'ADMINISTRATION': 'ADMINISTRATION',
+    'MODERATION': 'MODERATION',
+    'AIDE': 'AIDE',
+    'GERANCES SPECIALISEES': 'GERANCES SPECIALISEES',
+    'BUILD': 'BUILD',
+    'BOT': 'BOT',
+    'AUTRES ROLES': 'AUTRES ROLES'
+  };
+  return labels[category] || category;
+}
+
+async function buildHierarchyPayload(guild) {
+  await guild.roles.fetch().catch(() => null);
+
+  const hierarchy = getHierarchy();
+  let changed = false;
+  const embeds = [];
+
+  for (const category of HIERARCHY_CATEGORIES) {
+    const savedIds = Array.isArray(hierarchy[category]) ? hierarchy[category] : [];
+    const roles = savedIds
+      .map(id => guild.roles.cache.get(id))
+      .filter(Boolean)
+      .sort((a, b) => b.position - a.position);
+
+    const validIds = roles.map(role => role.id);
+    if (validIds.length !== savedIds.length || validIds.some((id, i) => id !== savedIds[i])) {
+      hierarchy[category] = validIds;
+      changed = true;
+    }
+
+    const description = roles.length
+      ? roles.map(role => `<@&${role.id}>`).join('\n')
+      : '> Aucun role configure';
+
+    embeds.push(
+      new EmbedBuilder()
+        .setColor(0x2B2D31)
+        .setTitle(hierarchyCategoryLabel(category))
+        .setDescription(description.slice(0, 4096))
+    );
+  }
+
+  if (changed) writeJson(HIERARCHY_FILE, hierarchy);
+
+  return {
+    content: '# HIERARCHIE OFFICIELLE - UNITY RP',
+    embeds: embeds.slice(0, 10),
+    allowedMentions: { parse: [] }
+  };
+}
+
+async function updateSavedHierarchyMessage(guild) {
+  const saved = readJson(HIERARCHY_MESSAGE_FILE, {
+    guildId: null,
+    channelId: null,
+    messageId: null
+  });
+
+  if (!saved.guildId || !saved.channelId || !saved.messageId) return false;
+  if (saved.guildId !== guild.id) return false;
+
+  try {
+    const channel = await guild.channels.fetch(saved.channelId);
+    if (!channel || !channel.isTextBased()) return false;
+
+    const message = await channel.messages.fetch(saved.messageId);
+    await message.edit(await buildHierarchyPayload(guild));
+    return true;
+  } catch (error) {
+    console.warn('Mise a jour du message de hierarchie impossible :', error?.message || error);
+    return false;
+  }
+}
+
 function buildPanelPayload() {
   const embed = new EmbedBuilder()
     .setColor(0x2B2D31)
